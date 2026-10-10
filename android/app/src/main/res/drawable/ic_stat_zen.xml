@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- H6: أيقونة شريط الإشعارات: شكل أحادي اللون (هلال ونجمة) بلا خلفية، كما يشترط أندرويد. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12.5,2.5a9.5,9.5 0,1 0,9 12.6a7.6,7.6 0,1 1,-9 -12.6z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M17.5,5l0.9,1.9 2.1,0.3 -1.5,1.5 0.35,2.1 -1.85,-1 -1.85,1 0.35,-2.1 -1.5,-1.5 2.1,-0.3z" />
+</vector>

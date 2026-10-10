@@ -1,0 +1,72 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+dist-native
+android/keystore.properties
+android/*.jks
+*.keystore
+.output
+.vinxi
+.tanstack/**
+.nitro
+*.local
+
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Secrets / environment
+# ملف .env متتبَّع عمداً: يحوي القيم العامة فقط (رابط Supabase ومفتاحه publishable) ويحتاجه
+# Lovable لتشغيل التطبيق. الأسرار (service_role ومفتاح الذكاء الاصطناعي) لا تُكتب فيه أبداً،
+# بل في «Secrets» في Lovable Cloud، أو محلياً في .env.local غير المتتبَّع.
+.env.*
+!.env.example
+!.env.staging.example
+
+# Playwright
+/test-results/
+/playwright-report/
+/perf-results/
+/blob-report/
+/playwright/.cache/
+
+# Capacitor / Android
+android/app/google-services.json
+# إعداد Firebase لا يُتتبَّع في أي مكان (القاعدة 30): يكتبه CI من السرّ GOOGLE_SERVICES_JSON
+/google-services.json
+**/google-services.json
+android/app/release/
+*.keystore
+*.jks
+android/keystore.properties
+ai-eval/report.json
+
+# قفل حزم واحد (npm): لا bun.lock ولا bunfig (M4)
+bun.lock
+bun.lockb
+bunfig.toml
+dist-legal/
+
+# تسجيلات تقييم التسميع: بيانات صوتية شخصية، لا تُرفع (ai-eval/recitation/README.md)
+ai-eval/recitation/audio/
+ai-eval/recitation/report.json

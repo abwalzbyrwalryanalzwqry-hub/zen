@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- H6: لون أيقونة الإشعار (أخضر زِن الأساسي). -->
+    <color name="zen_notification">#1F6B47</color>
+</resources>

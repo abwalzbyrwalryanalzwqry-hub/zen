@@ -1,0 +1,16 @@
+node_modules
+dist
+.output
+.vinxi
+pnpm-lock.yaml
+package-lock.json
+bun.lock
+routeTree.gen.ts
+src/data
+android
+ios
+playwright-report
+test-results
+supabase/functions/_shared/*.json
+public/data
+google-services.json

@@ -1,0 +1,43 @@
+# تدقيق 2026-10 (المرحلة 0.4): رصد الدفع المباشر إلى main. حماية الفروع غير متاحة لهذا المستودع الخاص
+# على خطة GitHub المجانية، فهذا السير لا يمنع الدفع لكنه يكشفه فوراً: كل commit جديد على main يجب أن
+# يكون من طلب دمج. حادثتا PR #11 (Lovable مسح main) و ec0b2bb (رفع google-services.json) سببهما دفع مباشر.
+name: حارس main
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: كل commit من طلب دمج
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            shas="$AFTER"
+          else
+            shas=$(gh api "repos/$REPO/compare/$BEFORE...$AFTER" --jq '.commits[].sha')
+          fi
+          bad=""
+          for sha in $shas; do
+            n=$(gh api "repos/$REPO/commits/$sha/pulls" --jq 'map(select(.merged_at != null)) | length')
+            if [ "$n" = "0" ]; then bad="$bad $sha"; fi
+          done
+          if [ -n "$bad" ]; then
+            echo "## ⛔ دفع مباشر إلى main دون طلب دمج" >> "$GITHUB_STEP_SUMMARY"
+            for s in $bad; do echo "- \`$s\`" >> "$GITHUB_STEP_SUMMARY"; done
+            echo "::error::commits على main ليست من طلب دمج مدموج:$bad"
+            exit 1
+          fi
+          echo "✅ كل commits هذا الدفع من طلبات دمج." >> "$GITHUB_STEP_SUMMARY"

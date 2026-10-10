@@ -1,0 +1,57 @@
+name: تقييم المساعد
+
+# المرحلة 12.4: يدوياً، وعند تغيير نواة المساعد أو حالات التقييم. يحتاج سرّ المستودع
+# LOVABLE_API_KEY (أو OPENAI_API_KEY / GEMINI_API_KEY)؛ بدونه يُفحص المصحّح فقط ويُتخطّى التقييم.
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "فئة واحدة (اختياري): no_quran / minor_safety / injection / fatwa / grounding / plan / general"
+        required: false
+        default: ""
+  pull_request:
+    paths:
+      - src/lib/ai-core.ts
+      - supabase/functions/_shared/ai-core.ts
+      - src/lib/ai-eval.ts
+      - ai-eval/**
+      - scripts/ai-eval.mjs
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    name: لا نص قرآني وسلامة القُصّر (100%)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: فحص المصحّح
+        run: node scripts/ai-eval.mjs --self-test
+      - name: التقييم (100 حالة)
+        env:
+          LOVABLE_API_KEY: ${{ secrets.LOVABLE_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -n "${{ inputs.only }}" ]; then
+            node scripts/ai-eval.mjs --only "${{ inputs.only }}" --out ai-eval/report.json
+          else
+            node scripts/ai-eval.mjs --out ai-eval/report.json
+          fi
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ai-eval-report
+          path: ai-eval/report.json
+          if-no-files-found: ignore

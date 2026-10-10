@@ -1,0 +1,83 @@
+# تدقيق 2026-10 (المرحلة 2.1): نشر الصفحات القانونية العامة (سياسة الخصوصية، الشروط، حذف الحساب) التي
+# يشترطها Google Play. زِن بلا نشر ويب (القاعدة 33)، والمستودع خاص فلا GitHub Pages له على الخطة المجانية،
+# فتُدفع صفحات HTML ثابتة إلى مستودع عام صغير مخصّص لها (فرع gh-pages) يُفعَّل فيه Pages.
+#
+# الإعداد مرة واحدة (docs/PLAY_STORE.md ← «الصفحات القانونية»):
+#   vars.LEGAL_CONTACT_EMAIL  بريد الدعم الذي يظهر في الصفحات.
+#   vars.LEGAL_SITE_REPO      المستودع العام، مثل owner/zen-legal.
+#   secrets.LEGAL_SITE_TOKEN  رمز fine-grained بصلاحية Contents: write على ذلك المستودع وحده.
+name: الصفحات القانونية
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/content/legal.ts
+      - scripts/build-legal-site.mjs
+      - scripts/verify-page.mjs
+      - .github/workflows/legal-site.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: legal-site
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: الإعداد موجود
+        env:
+          CONTACT: ${{ vars.LEGAL_CONTACT_EMAIL }}
+          REPO: ${{ vars.LEGAL_SITE_REPO }}
+          TOKEN: ${{ secrets.LEGAL_SITE_TOKEN }}
+        run: |
+          missing=""
+          [ -n "$CONTACT" ] || missing="$missing LEGAL_CONTACT_EMAIL"
+          [ -n "$REPO" ] || missing="$missing LEGAL_SITE_REPO"
+          [ -n "$TOKEN" ] || missing="$missing LEGAL_SITE_TOKEN"
+          if [ -n "$missing" ]; then
+            echo "::error::إعداد الصفحات القانونية ناقص:$missing (docs/PLAY_STORE.md)"
+            exit 1
+          fi
+
+      - name: توليد الصفحات
+        env:
+          LEGAL_CONTACT_EMAIL: ${{ vars.LEGAL_CONTACT_EMAIL }}
+        run: node scripts/build-legal-site.mjs --out dist-legal
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: legal-site
+          path: dist-legal
+          retention-days: 30
+
+      - name: النشر إلى gh-pages في المستودع العام
+        env:
+          REPO: ${{ vars.LEGAL_SITE_REPO }}
+          TOKEN: ${{ secrets.LEGAL_SITE_TOKEN }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          cd dist-legal
+          git init -q -b gh-pages
+          git config user.name "zen-legal-bot"
+          git config user.email "zen-legal-bot@users.noreply.github.com"
+          git add -A
+          git commit -qm "الصفحات القانونية من ${SHA::7}"
+          git push -q --force "https://x-access-token:${TOKEN}@github.com/${REPO}.git" gh-pages
+          owner="${REPO%%/*}"; name="${REPO#*/}"
+          echo "## الصفحات القانونية" >> "$GITHUB_STEP_SUMMARY"
+          for p in privacy delete-account terms; do
+            echo "- https://${owner}.github.io/${name}/${p}.html" >> "$GITHUB_STEP_SUMMARY"
+          done
+          echo "- التحقق العام من الشهائد: https://${owner}.github.io/${name}/verify/" >> "$GITHUB_STEP_SUMMARY"

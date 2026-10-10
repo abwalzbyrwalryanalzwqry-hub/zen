@@ -1,0 +1,39 @@
+# تدقيق 2026-10 (المرحلة 3.6): تحديثات الاعتماديات طلبات دمج صغيرة مجمَّعة بدل قفزات كبيرة نادرة.
+# كل طلب يمرّ بـ CI كاملاً (الفحوص و E2E). الإصدارات الكبرى (major) لا تُجمَّع: تُراجع منفردة.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: saturday
+      time: "06:00"
+      timezone: Asia/Aden
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    groups:
+      dev-minor:
+        dependency-type: development
+        update-types: [minor, patch]
+      prod-minor:
+        dependency-type: production
+        update-types: [minor, patch]
+    ignore:
+      # يديرها Lovable مع قالب المشروع (docs/LOVABLE.md)؛ تُحدَّث من هناك.
+      - dependency-name: "@lovable.dev/*"
+      # نسخة Edge مثبّتة وتطابق التطبيق حرفياً (edge-pins.test.ts)؛ تُحدَّث يدوياً مع دوال Edge معاً.
+      - dependency-name: "@supabase/supabase-js"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies]
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: gradle
+    directory: /android
+    schedule:
+      interval: monthly
+    labels: [dependencies, android]
+    open-pull-requests-limit: 3

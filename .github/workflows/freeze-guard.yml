@@ -1,0 +1,39 @@
+# تدقيق 10 أكتوبر 2026 (المرحلة 0.1، P0-01): تجميد الميزات حتى 2.0.0. طلب دمج إلى main من فرع `feat/*` يفشل
+# إلا بوسم `freeze-exception` يضعه المالك بقرار مكتوب في وصف الطلب. الإصلاح (`fix/*`) والوثائق والتحديثات مسموحة.
+# يُحذف هذا السير بعد إصدار 2.0.0 (أو يُعدَّل التاريخ في docs/decisions/0011-audience-and-freeze.md).
+name: حارس التجميد
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, labeled, unlabeled, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  freeze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: لا ميزات جديدة قبل 2.0.0
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          TITLE: ${{ github.event.pull_request.title }}
+          EXCEPTION: ${{ contains(github.event.pull_request.labels.*.name, 'freeze-exception') }}
+        run: |
+          set -euo pipefail
+          case "$HEAD_REF" in
+            feat/*|feature/*) is_feat=1 ;;
+            *) is_feat=0 ;;
+          esac
+          if [ "$is_feat" = 1 ] && [ "$EXCEPTION" != "true" ]; then
+            {
+              echo "## ⛔ تجميد الميزات حتى 2.0.0"
+              echo "الفرع \`$HEAD_REF\` فرع ميزة. التجميد ساري (القرار 0011). إن كان هذا إصلاحاً فسمِّ الفرع \`fix/…\`،"
+              echo "وإن كان استثناءً مقصوداً فضع الوسم \`freeze-exception\` واكتب السبب في الوصف."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::فرع ميزة أثناء التجميد: $HEAD_REF"
+            exit 1
+          fi
+          echo "✅ $HEAD_REF مسموح أثناء التجميد."

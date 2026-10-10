@@ -1,0 +1,12 @@
+#!/bin/sh
+# تدقيق 2026-10 (المرحلة 0.4): لا دفع مباشر إلى main. حماية الفروع غير متاحة لمستودع خاص على خطة
+# GitHub المجانية، فهذا الحارس المحلي يمنع الخطأ قبل وقوعه، ويرصد ما يفلت منه سير العمل main-guard.
+# التثبيت: npm run hooks:install  ·  التجاوز الطارئ الموثَّق فقط: ZEN_ALLOW_MAIN_PUSH=1 git push
+protected="refs/heads/main"
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [ "$remote_ref" = "$protected" ] && [ "${ZEN_ALLOW_MAIN_PUSH:-}" != "1" ]; then
+    echo "⛔ الدفع المباشر إلى main ممنوع. ادفع إلى فرع وافتح طلب دمج (README ← سير العمل)." >&2
+    exit 1
+  fi
+done
+exit 0

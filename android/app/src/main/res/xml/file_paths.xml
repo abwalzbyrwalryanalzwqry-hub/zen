@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- تدقيق 1.6: لا external-path (كان path="." يكشف جذر التخزين الخارجي كله لأي URI يمنحه التطبيق).
+     المشاركة تمرّ بملفات مؤقتة في ذاكرة التطبيق المؤقتة فقط (saveFile وبطاقة المشاركة، Directory.Cache). -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="my_cache_images" path="." />
+</paths>

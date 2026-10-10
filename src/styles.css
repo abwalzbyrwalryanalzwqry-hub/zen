@@ -1,0 +1,633 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+/* مصحف المدينة (١٥ سطراً): خط مجمع الملك فهد لطباعة المصحف الشريف — حفص عثماني.
+ * يوزَّع دون أي تعديل وفق رخصته (public/fonts/KFGQPC-FONT-LICENSE.txt). */
+@font-face {
+  font-family: "KFGQPC Hafs";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/kfgqpc-hafs-uthmanic-v18.woff2") format("woff2");
+}
+
+/* خط الواجهة: Markazi Text (OFL) تحت الاسم المستعار «Zen Text» — انظر src/lib/brand-font.ts. */
+@font-face {
+  font-family: "Zen Text";
+  src: url("/src/assets/fonts/markazi-text.woff2") format("woff2");
+  font-weight: 300 900;
+  font-display: swap;
+}
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Zen Text", system-ui, sans-serif;
+  --font-display: "Zen Text", serif;
+  /* خطوط نص القرآن في قسم المصحف (القراءة بالسورة والتفسير والمشاركة). */
+  --font-quran: "Amiri Quran", "Scheherazade New", "Traditional Arabic", "KFGQPC Hafs", serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
+  --radius-3xl: calc(var(--radius) + 20px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-glow: var(--primary-glow);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-gold-ink: var(--gold-ink);
+  --color-mushaf-paper: var(--mushaf-paper);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-excused: var(--excused);
+  --color-excused-foreground: var(--excused-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-glass: var(--glass);
+  --color-glass-border: var(--glass-border);
+
+  --shadow-glow: 0 0 40px oklch(from var(--primary-glow) l c h / 0.35);
+  --shadow-gold: 0 0 30px oklch(from var(--gold) l c h / 0.3);
+  --shadow-soft: 0 2px 12px oklch(0.22 0.04 155 / 0.06), 0 1px 3px oklch(0.22 0.04 155 / 0.05);
+  --shadow-elegant: 0 12px 40px oklch(0.22 0.04 155 / 0.14), 0 2px 8px oklch(0.22 0.04 155 / 0.06);
+}
+
+:root {
+  --radius: 1rem;
+
+  /* Light — soft warm off-white */
+  --background: oklch(0.98 0.012 85);
+  --foreground: oklch(0.22 0.04 155);
+
+  --card: oklch(0.995 0.008 85);
+  --card-foreground: oklch(0.22 0.04 155);
+
+  --popover: oklch(0.995 0.008 85);
+  --popover-foreground: oklch(0.22 0.04 155);
+
+  --primary: oklch(0.42 0.12 155);
+  --primary-foreground: oklch(0.98 0.012 85);
+  --primary-glow: oklch(0.58 0.16 155);
+
+  --secondary: oklch(0.94 0.02 85);
+  --secondary-foreground: oklch(0.28 0.06 155);
+
+  --muted: oklch(0.94 0.015 85);
+  --muted-foreground: oklch(0.48 0.03 155);
+
+  --accent: oklch(0.93 0.04 85);
+  --accent-foreground: oklch(0.28 0.06 155);
+
+  --gold: oklch(0.75 0.13 85);
+  --gold-foreground: oklch(0.22 0.04 155);
+  /* ذهبي للنص على الأسطح الفاتحة: الذهبي الزخرفي (0.75) تباينه نحو ٢:١ فقط، وهذا ≥ ٤٫٥:١. */
+  --gold-ink: oklch(0.52 0.11 80);
+  /* ورق المصحف: فاتح في الوضعين لأن حبر صفحات المصحف ثابت داكن (DR-28). */
+  --mushaf-paper: #fdfaf2;
+
+  --destructive: oklch(0.53 0.2 25);
+  --destructive-foreground: oklch(0.99 0.005 85);
+
+  /* «مستأذن» في الحضور (السجل اليومي): بنفسجي دلالي، تباين النص الأبيض عليه ≥ ٤٫٥:١. */
+  --excused: oklch(0.5 0.16 300);
+  --excused-foreground: oklch(0.99 0.005 85);
+
+  --border: oklch(0.88 0.02 85);
+  --input: oklch(0.9 0.015 85);
+  --ring: oklch(0.5 0.12 155);
+
+  --glass: oklch(1 0 0 / 0.55);
+  --glass-border: oklch(1 0 0 / 0.45);
+
+  --grad-bg:
+    radial-gradient(1200px 800px at 10% 0%, oklch(0.96 0.04 155 / 0.7), transparent 60%),
+    radial-gradient(1000px 700px at 100% 100%, oklch(0.94 0.07 85 / 0.6), transparent 60%),
+    linear-gradient(180deg, oklch(0.985 0.012 85), oklch(0.97 0.02 85));
+}
+
+.dark {
+  --background: oklch(0.16 0.03 155);
+  --foreground: oklch(0.96 0.01 85);
+
+  --card: oklch(0.22 0.04 155);
+  --card-foreground: oklch(0.96 0.01 85);
+
+  --popover: oklch(0.22 0.04 155);
+  --popover-foreground: oklch(0.96 0.01 85);
+
+  /* 0.68 (لا 0.62): النص الأخضر الصغير على الأسطح الداكنة يبلغ ٤٫٥:١. */
+  --primary: oklch(0.68 0.14 155);
+  --primary-foreground: oklch(0.12 0.02 155);
+  --primary-glow: oklch(0.72 0.18 155);
+
+  --secondary: oklch(0.26 0.04 155);
+  --secondary-foreground: oklch(0.96 0.01 85);
+
+  --muted: oklch(0.24 0.03 155);
+  --muted-foreground: oklch(0.72 0.02 85);
+
+  --accent: oklch(0.3 0.05 155);
+  --accent-foreground: oklch(0.96 0.01 85);
+
+  --gold: oklch(0.82 0.14 85);
+  --gold-foreground: oklch(0.16 0.03 155);
+  --gold-ink: var(--gold);
+
+  --destructive: oklch(0.65 0.22 25);
+  --destructive-foreground: oklch(0.98 0.005 85);
+
+  --excused: oklch(0.72 0.14 300);
+  --excused-foreground: oklch(0.14 0.03 300);
+
+  --border: oklch(1 0 0 / 0.08);
+  --input: oklch(1 0 0 / 0.1);
+  --ring: oklch(0.62 0.14 155);
+
+  --glass: oklch(0.28 0.04 155 / 0.5);
+  --glass-border: oklch(1 0 0 / 0.1);
+
+  --grad-bg:
+    radial-gradient(1200px 800px at 10% 0%, oklch(0.35 0.12 155 / 0.6), transparent 60%),
+    radial-gradient(1000px 700px at 100% 100%, oklch(0.22 0.05 155 / 0.9), transparent 60%),
+    linear-gradient(180deg, oklch(0.13 0.03 155), oklch(0.08 0.02 155));
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background: var(--grad-bg);
+    color: var(--color-foreground);
+    min-height: 100vh;
+    background-attachment: fixed;
+  }
+}
+
+/* Islamic geometric pattern overlay */
+@utility bg-pattern {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'><g fill='none' stroke='%23c9a961' stroke-width='0.6' opacity='0.35'><path d='M40 4 L52 28 L76 28 L58 46 L64 72 L40 58 L16 72 L22 46 L4 28 L28 28 Z'/><circle cx='40' cy='40' r='14'/><path d='M40 26 L54 40 L40 54 L26 40 Z'/></g></svg>");
+  background-repeat: repeat;
+}
+
+@utility glass {
+  background: var(--color-glass);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid var(--color-glass-border);
+}
+
+@utility glass-strong {
+  background: var(--color-glass);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid var(--color-glass-border);
+  box-shadow: 0 8px 32px oklch(0 0 0 / 0.08);
+}
+
+@utility text-gradient-gold {
+  background: linear-gradient(135deg, var(--gold), oklch(from var(--gold) calc(l + 0.1) c h));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility glow-primary {
+  box-shadow:
+    0 0 30px oklch(from var(--primary-glow) l c h / 0.5),
+    0 0 60px oklch(from var(--primary-glow) l c h / 0.25);
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px oklch(from var(--primary-glow) l c h / 0.4),
+      0 0 40px oklch(from var(--primary-glow) l c h / 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 40px oklch(from var(--primary-glow) l c h / 0.7),
+      0 0 80px oklch(from var(--primary-glow) l c h / 0.4);
+  }
+}
+@keyframes float-in {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* وميض خفيف لآخر آية سُجّلت في «اختيار من المصحف»، ولرسالة يُقفز إليها في المحادثة.
+   ينتهي بتظليل ذهبي هادئ يبقى، فيراه من يفضّل تقليل الحركة أيضاً. */
+@keyframes ayah-flash {
+  0%,
+  100% {
+    background-color: oklch(from var(--gold) l c h / 0.22);
+  }
+  50% {
+    background-color: oklch(from var(--gold) l c h / 0.6);
+    box-shadow: 0 0 0 2px oklch(from var(--gold) l c h / 0.35);
+  }
+}
+.ayah-flash {
+  border-radius: 0.25rem;
+  animation: ayah-flash 0.9s ease-in-out 4 forwards;
+  background-color: oklch(from var(--gold) l c h / 0.22);
+}
+@keyframes msg-flash {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  40% {
+    box-shadow: 0 0 0 3px oklch(from var(--gold) l c h / 0.55);
+  }
+}
+.msg-flash {
+  animation: msg-flash 0.8s ease-in-out 3;
+}
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+@utility anim-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+@utility anim-float-in {
+  animation: float-in 0.5s ease-out both;
+}
+@utility anim-typing-dot {
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+
+/* ─────────── سهولة الاستخدام (المرحلة 9) ───────────
+   حجم الخط: كل المقاسات في الواجهة بوحدة rem، فتكبير خط الجذر يكبّر النص والأيقونات معاً.
+   التباين العالي: نص ثانوي أغمق/أفتح، وأسطح زجاجية معتمة بحدود واضحة. */
+html[data-font="sm"] {
+  font-size: 93.75%;
+}
+html[data-font="lg"] {
+  font-size: 112.5%;
+}
+html[data-font="xl"] {
+  font-size: 125%;
+}
+/* فحص 2026-10 (P3): بطاقات الاختيار الثلاثية تنكسر نصوصها بالخط الكبير جداً، فتصير صفوفاً. */
+html[data-font="xl"] .zen-choice-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html.hc {
+  --muted-foreground: oklch(0.3 0.03 155);
+  --glass: oklch(1 0 0 / 0.96);
+  --glass-border: oklch(0.35 0.03 155 / 0.6);
+  --border: oklch(0.45 0.03 155);
+}
+html.hc.dark {
+  --muted-foreground: oklch(0.9 0.01 85);
+  --glass: oklch(0.2 0.03 155 / 0.97);
+  --glass-border: oklch(1 0 0 / 0.45);
+  --border: oklch(1 0 0 / 0.4);
+}
+html.hc .glass,
+html.hc .glass-strong {
+  backdrop-filter: none;
+  border: 1px solid var(--glass-border);
+}
+
+/* ─────────── وضع الأداء (1.17.0، src/lib/perf-mode.ts) ───────────
+   التمويه الخلفي من أثقل عمليات التركيب على GPU الأجهزة الضعيفة. بدله خلفية شبه معتمة من لون البطاقة
+   نفسه، فالشكل قريب جداً من الزجاج فوق خلفية التطبيق الهادئة. */
+html.perf:not(.hc) .glass,
+html.perf:not(.hc) .glass-strong {
+  backdrop-filter: none;
+  background: color-mix(in oklch, var(--card) 90%, transparent);
+}
+/* في كل الأجهزة: زجاج داخل زجاج لا يضيف شيئاً مرئياً (الخلفية خلفه مموّهة أصلاً) ويضاعف الكلفة،
+   وصفوف القوائم المتكررة تُرسم بلا تمويه. */
+:is(.glass, .glass-strong) :is(.glass, .glass-strong),
+:is(li, [data-list-row]):is(.glass, .glass-strong) {
+  backdrop-filter: none;
+}
+/* الصفوف خارج الشاشة لا تُرسم ولا تُخطَّط حتى تقترب منها (حلقة من 40 طالباً ترسم نحو 8 صفوف أولاً). */
+:is(li[data-student], [data-list-row]) {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ── إطار الشاشة (PhoneFrame) ──
+   كل عنصر flex-1 داخل الإطار يُسمح له بالانكماش، فتعمل مناطق التمرير الداخلية
+   ولا يُدفع الشريط السفلي خارج الشاشة. هوامش الأمان: Capacitor يحقن ‎--safe-area-inset-*‎،
+   والمتصفح يوفّر env(). الرأس فيه أصلاً ‎pt-12‎، فلا يُضاف أعلاه إلا ما يزيد عن 24px. */
+/* في طبقة base كي تغلبها أصناف ‎min-h-*‎ الصريحة (كانت الأزرار ذات flex-1 وmin-h-10 تنضغط إلى ارتفاع النص). */
+@layer base {
+  .zen-frame .flex-1 {
+    min-height: 0;
+  }
+}
+.zen-safe {
+  --zen-sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --zen-sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  padding-top: max(0px, calc(var(--zen-sat) - 24px));
+  padding-bottom: var(--zen-sab);
+  padding-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  padding-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+}
+html,
+body {
+  overscroll-behavior: none;
+}
+
+/* ───────────────── قسم المصحف (منقول من قسم القرآن في منار بهوية زِن) ─────────────────
+   الأسماء نفسها التي تستعملها شاشات منار، لكن القيم من لوحة زِن: الأخضر العميق والذهبي. */
+:root {
+  /* نهاية التدرج أعمق من primary-glow في الفاتح ليبقى النص الفاتح فوقه مقروءاً (≥ ٤٫٥:١). */
+  --gradient-primary: linear-gradient(135deg, var(--primary), oklch(0.5 0.14 155));
+  --gradient-gold: linear-gradient(135deg, var(--gold), oklch(from var(--gold) calc(l + 0.1) c h));
+  --gradient-night: linear-gradient(
+    150deg,
+    oklch(0.34 0.09 155),
+    oklch(0.24 0.06 160) 60%,
+    oklch(0.2 0.045 165)
+  );
+}
+.dark {
+  --gradient-primary: linear-gradient(135deg, var(--primary), var(--primary-glow));
+  --gradient-night: linear-gradient(
+    150deg,
+    oklch(0.3 0.08 155),
+    oklch(0.2 0.05 160) 60%,
+    oklch(0.15 0.03 165)
+  );
+}
+@utility gradient-primary {
+  background-image: var(--gradient-primary);
+}
+@utility gradient-gold {
+  background-image: var(--gradient-gold);
+}
+@utility gradient-night {
+  background-image: var(--gradient-night);
+}
+@utility glass-flat {
+  background: color-mix(in oklab, var(--card) 94%, transparent);
+  border: 1px solid var(--color-glass-border);
+}
+@utility grain-overlay {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background-size: 160px 160px;
+  mix-blend-mode: overlay;
+  opacity: 0.18;
+  pointer-events: none;
+}
+/* العناصر الثابتة في شاشات المصحف (شريط التلاوة، أزرار القارئ) تبقى داخل إطار زِن. */
+.zq-screen {
+  contain: layout;
+}
+.animate-fade-up {
+  animation: float-in 0.5s ease-out both;
+}
+.stagger > * {
+  animation: float-in 0.45s ease-out both;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 180ms;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 240ms;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 300ms;
+}
+.stagger > *:nth-child(7) {
+  animation-delay: 360ms;
+}
+.stagger > *:nth-child(8) {
+  animation-delay: 420ms;
+}
+@keyframes zq-skeleton {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+.zq-skeleton {
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--muted) 80%, transparent),
+    color-mix(in oklab, var(--muted) 35%, transparent),
+    color-mix(in oklab, var(--muted) 80%, transparent)
+  );
+  background-size: 200% 100%;
+  animation: zq-skeleton 1.6s ease-in-out infinite;
+  border-radius: 12px;
+}
+
+/* ورق القراءة (إعدادات القراءة ← لون الورق): يعيد تعريف ألوان القارئ وحده. */
+.reading-paper-sepia {
+  --gold-ink: #7d540c;
+  --background: #f3e7cf;
+  --card: #f8eed9;
+  --foreground: #3b2c17;
+  --muted-foreground: #7a6446;
+  --muted: #eadbbd;
+  --border: rgb(122 90 40 / 0.22);
+  --gold: #9a6a12;
+  --primary: #6f5a2a;
+  --primary-glow: #947636;
+  --primary-foreground: #fbf5e8;
+  --glass: rgb(255 250 238 / 0.6);
+  --glass-border: rgb(122 90 40 / 0.18);
+  --gradient-primary: linear-gradient(135deg, #6f5a2a, #7d6329);
+  color-scheme: light;
+}
+.reading-paper-night {
+  --gold-ink: #c9a14a;
+  --background: #0d1210;
+  --card: #151b18;
+  --foreground: #e6dcc3;
+  --muted-foreground: #9c937f;
+  --muted: #212925;
+  --border: rgb(230 220 195 / 0.1);
+  --gold: #c9a14a;
+  --primary: #b9a26a;
+  --primary-glow: #d0bb84;
+  --primary-foreground: #15181c;
+  --glass: rgb(255 255 255 / 0.05);
+  --glass-border: rgb(255 255 255 / 0.08);
+  --gradient-primary: linear-gradient(135deg, #a08a55, #b9a26a);
+  color-scheme: dark;
+}
+.reading-paper-black {
+  --gold-ink: #c9a14a;
+  --background: #000000;
+  --card: #050505;
+  --foreground: #e8e1cc;
+  --muted-foreground: #9a927f;
+  --muted: #151515;
+  --border: rgb(232 225 204 / 0.12);
+  --gold: #c9a14a;
+  --primary: #b9a26a;
+  --primary-glow: #d0bb84;
+  --primary-foreground: #0b0b0b;
+  --glass: rgb(255 255 255 / 0.04);
+  --glass-border: rgb(255 255 255 / 0.08);
+  --gradient-primary: linear-gradient(135deg, #a08a55, #b9a26a);
+  color-scheme: dark;
+}
+.reading-paper-sepia,
+.reading-paper-night,
+.reading-paper-black {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-gold: var(--gold);
+  --color-primary: var(--primary);
+  --color-primary-glow: var(--primary-glow);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-glass: var(--glass);
+  --color-glass-border: var(--glass-border);
+  background-color: var(--background);
+}
+@keyframes zq-scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-scale-in {
+  animation: zq-scale-in 0.2s ease-out both;
+}
+
+/* ─────────── تباين الذهبي ───────────
+   text-gold على الأسطح الفاتحة يأخذ الذهبي الداكن (gold-ink)، ويبقى الذهبي المضيء على الأسطح
+   الخضراء الداكنة (البطاقات المتدرجة والأزرار) حيث تباينه عالٍ أصلاً. */
+:root:not(.dark) .text-gold {
+  color: var(--gold-ink);
+}
+:root:not(.dark)
+  :is(
+    .gradient-primary,
+    .gradient-night,
+    .bg-primary,
+    .bg-gradient-to-br,
+    .bg-gradient-to-b,
+    .bg-gradient-to-l,
+    .bg-gradient-to-r,
+    [data-dark-surface]
+  )
+  .text-gold {
+  color: var(--gold);
+}
+/* ورق القراءة يفرض ذهبيه المقروء في الوضعين الفاتح والداكن. */
+.reading-paper-sepia .text-gold,
+.reading-paper-night .text-gold,
+.reading-paper-black .text-gold {
+  color: var(--gold-ink);
+}
+
+/* شريط تمرير أفقي مخفي (اختصارات الرد في المحادثة) مع بقاء التمرير باللمس والعجلة. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* تمييز الآية في وضع السورة: خلفية لكل سطر من الآية الممتدة، بلا إطار مقطوع بين الأسطر. */
+.ayah-highlight {
+  border-radius: 0.4em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  padding-block: 0.08em;
+}
+/* صفحات السورة خارج الشاشة لا تُرسم حتى تقترب منها (أداء البقرة وآل عمران). */
+.surah-page-group {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 640px;
+}
+/* القفز إلى آية يضعها تحت الشريط العلوي الثابت لا خلفه. */
+.surah-page-group [data-ayah] {
+  scroll-margin-top: 6rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .surah-page-group *,
+  .reader-motion,
+  .animate-fade-up,
+  .animate-scale-in {
+    animation: none !important;
+    transition: none !important;
+  }
+}

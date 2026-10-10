@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- H4: النسخ الاحتياطي ونقل الجهاز (Android 12+). القواعد نفسها في backup_rules.xml:
+     إعدادات بسيطة فقط، ولا رمز جلسة ولا حافظة. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="sharedpref" path="zen_widget.xml" />
+        <include domain="sharedpref" path="zen_system.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="sharedpref" path="zen_widget.xml" />
+        <include domain="sharedpref" path="zen_system.xml" />
+    </device-transfer>
+</data-extraction-rules>

@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- L6: روابط zen:// تفتح الصفحة داخل التطبيق (zen://quran/2 ← /quran/2). المسار
+                 يُتحقق منه في native.ts (مسارات داخلية فقط). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="zen" />
+            </intent-filter>
+
+        </activity>
+
+        <!-- H6: أيقونة الإشعار أحادية اللون (أندرويد يرسم الأيقونة بيضاء؛ الملوّنة تظهر مربعاً)
+             ولونها، لإشعارات FCM حين يكون التطبيق في الخلفية. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_zen" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/zen_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="zen-default" />
+
+        <!-- ماسح Google للرموز (المرحلة 9.2): يُنزَّل مع التطبيق من Google Play Services بلا إذن كاميرا -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="barcode_ui" />
+
+
+        <!-- M14: تلاوة المصحف تستمر والشاشة مطفأة، بإشعار فيه السابق/تشغيل/التالي. -->
+        <!-- قفل التطبيق 1.29.0: بلاطة «اقفل زِن» في الإعدادات السريعة. -->
+        <service
+            android:name=".ZenLockTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_lock_tile"
+            android:label="@string/lock_tile_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".ZenPlaybackService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- قفل التطبيق 1.29.0 (M5): إخفاء نوافذ التطبيقات العائمة فوق شاشة القفل (Android 12+، إذن عادي). -->
+    <uses-permission android:name="android.permission.HIDE_OVERLAY_WINDOWS" />
+    <!-- قفل التطبيق 1.29.0: اهتزاز قصير عند رمز خاطئ (navigator.vibrate في WebView؛ إذن عادي). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- التسميع: يطلبه الغلاف وقت أول تسجيل فقط (getUserMedia داخل WebView). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- إشعارات FCM الأصلية (أندرويد 13+ يطلب الإذن صراحةً). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- M14: خدمة التلاوة في الخلفية. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- مواقيت الصلاة: زر «موقعي» في الإعدادات (navigator.geolocation داخل WebView). يطلبه
+         BridgeWebChromeClient وقت الضغط فقط، والموقع يبقى على الجهاز ولا يُرسل إلى أي خادم.
+         التقريبي يكفي لحساب المواقيت؛ الدقيق مطلوب فقط حتى Android 11 لأن الغلاف يطلب الاثنين معاً
+         ولا يقبل التقريبي وحده قبل Android 12. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <!-- لا نستبعد الأجهزة بلا GPS من المتجر: الموقع اختياري واختيار المدينة يدوياً متاح. -->
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.location.network" android:required="false" />
+</manifest>

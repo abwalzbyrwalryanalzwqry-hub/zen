@@ -1,0 +1,194 @@
+{
+  "about": "سيناريوهات جلسة قفل التطبيق المشتركة (1.29.0): يشغّلها LockSessionScenarioTest على LockSession.java، وsrc/lib/app-lock-session.test.ts على app-lock-session.ts التي يستعملها الجسر الوهمي في e2e. أي تغيير في السلوك يُكتب هنا أولاً. كل خطوة: op ووقت t (ساعة رتيبة بالملّي ثانية) ووسائطها، وexpect اختياري يُفحص بعدها (result قيمة الإرجاع، وunlocked، وauthorized عند t).",
+  "scenarios": [
+    {
+      "name": "فور المغادرة: الخروج يقفل مباشرة",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "stop", "t": 1000, "grace": 0, "expect": { "result": true, "unlocked": false } },
+        { "op": "start", "t": 2000, "grace": 0, "expect": { "result": false, "unlocked": false } }
+      ]
+    },
+    {
+      "name": "سماح 30 ثانية: قبلها مفتوح وبعدها مقفل",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "stop", "t": 1000, "grace": 30000, "expect": { "result": false, "unlocked": true } },
+        { "op": "start", "t": 11000, "grace": 30000, "expect": { "result": false, "unlocked": true } },
+        { "op": "stop", "t": 12000, "grace": 30000 },
+        { "op": "start", "t": 52000, "grace": 30000, "expect": { "result": true, "unlocked": false } }
+      ]
+    },
+    {
+      "name": "القفل معطّل: لا شيء يتغير",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "stop", "t": 1, "grace": 0, "enabled": false, "expect": { "result": false, "unlocked": true } },
+        { "op": "lockNow", "t": 2, "enabled": false, "expect": { "result": false, "unlocked": true } }
+      ]
+    },
+    {
+      "name": "H3: شاشة رمز الجهاز أثناء تأكيد ناجح لا تقفل التطبيق",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "beginAuth", "t": 1000, "expect": { "result": true } },
+        { "op": "stop", "t": 1100, "grace": 0, "expect": { "result": false, "unlocked": true } },
+        { "op": "endAuth", "t": 5000, "success": true },
+        { "op": "start", "t": 5100, "grace": 0, "expect": { "result": false, "unlocked": true } }
+      ]
+    },
+    {
+      "name": "H3: المصادقة ما تزال جارية عند العودة (ترتيب الأحداث معكوس) لا تقفل",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "beginAuth", "t": 1000 },
+        { "op": "stop", "t": 1100, "grace": 0 },
+        { "op": "start", "t": 4000, "grace": 0, "expect": { "result": false, "unlocked": true } },
+        { "op": "endAuth", "t": 4100, "success": true, "expect": { "unlocked": true } }
+      ]
+    },
+    {
+      "name": "H3: نافذة تأكيد أُلغيت بالرئيسية ثم عودة بعد 30 ثانية: مقفل",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "beginAuth", "t": 1000 },
+        { "op": "stop", "t": 1100, "grace": 0, "expect": { "result": false } },
+        { "op": "endAuth", "t": 1200, "success": false },
+        { "op": "start", "t": 31000, "grace": 0, "expect": { "result": true, "unlocked": false } }
+      ]
+    },
+    {
+      "name": "H3: الإلغاء يصل قبل onStop: يقفل عند المغادرة",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "beginAuth", "t": 1000 },
+        { "op": "endAuth", "t": 1050, "success": false },
+        { "op": "stop", "t": 1100, "grace": 0, "expect": { "result": true, "unlocked": false } }
+      ]
+    },
+    {
+      "name": "H3: نجاح سابق للمغادرة لا يمنح استثناءً",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "beginAuth", "t": 1000 },
+        { "op": "endAuth", "t": 2000, "success": true },
+        { "op": "beginAuth", "t": 3000 },
+        { "op": "stop", "t": 3100, "grace": 0 },
+        { "op": "endAuth", "t": 3200, "success": false },
+        { "op": "start", "t": 4000, "grace": 0, "expect": { "result": true, "unlocked": false } }
+      ]
+    },
+    {
+      "name": "H3: غياب أطول من 60 ثانية أثناء مصادقة يقفل",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "beginAuth", "t": 1000 },
+        { "op": "stop", "t": 1100, "grace": 0 },
+        { "op": "start", "t": 70000, "grace": 0, "expect": { "result": true, "unlocked": false } }
+      ]
+    },
+    {
+      "name": "H3: علَم عالق يسقط بعد 90 ثانية فتُقبل مصادقة جديدة",
+      "steps": [
+        { "op": "beginAuth", "t": 0, "expect": { "result": true } },
+        { "op": "beginAuth", "t": 1000, "expect": { "result": false } },
+        { "op": "beginAuth", "t": 90000, "expect": { "result": true } }
+      ]
+    },
+    {
+      "name": "H3: نشاط جديد يصفّر علَم المصادقة",
+      "steps": [
+        { "op": "beginAuth", "t": 0 },
+        { "op": "reset", "t": 10 },
+        { "op": "beginAuth", "t": 20, "expect": { "result": true } }
+      ]
+    },
+    {
+      "name": "M3: صلاحية الاستعادة تسقط بمغادرة التطبيق وهو مقفل",
+      "steps": [
+        { "op": "authorize", "t": 0, "window": 300000, "requireUnlocked": false, "expect": { "authorized": true, "unlocked": false } },
+        { "op": "stop", "t": 1000, "grace": 0, "expect": { "authorized": false } },
+        { "op": "start", "t": 2000, "grace": 0, "expect": { "authorized": false, "unlocked": false } }
+      ]
+    },
+    {
+      "name": "التأكيد يحتاج تطبيقاً مفتوحاً، ويسقط بإعادة القفل",
+      "steps": [
+        { "op": "authorize", "t": 0, "window": 120000, "requireUnlocked": true, "expect": { "authorized": false } },
+        { "op": "unlock", "t": 10 },
+        { "op": "authorize", "t": 20, "window": 120000, "requireUnlocked": true, "expect": { "authorized": true } },
+        { "op": "lockNow", "t": 30, "expect": { "result": true, "authorized": false, "unlocked": false } }
+      ]
+    },
+    {
+      "name": "الصلاحية تنتهي بمرور نافذتها",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "authorize", "t": 0, "window": 120000, "requireUnlocked": true },
+        { "op": "touch", "t": 119999, "expect": { "authorized": true } },
+        { "op": "touch", "t": 120000, "expect": { "authorized": false } }
+      ]
+    },
+    {
+      "name": "الإثبات لمرة واحدة ولوسيلته فقط",
+      "steps": [
+        { "op": "setProof", "t": 0, "mode": "device", "window": 60000 },
+        { "op": "consumeProof", "t": 10, "mode": "biometric", "expect": { "result": false } },
+        { "op": "setProof", "t": 20, "mode": "device", "window": 60000 },
+        { "op": "consumeProof", "t": 30, "mode": "device", "expect": { "result": true } },
+        { "op": "consumeProof", "t": 40, "mode": "device", "expect": { "result": false } },
+        { "op": "setProof", "t": 50, "mode": "device", "window": 60000 },
+        { "op": "consumeProof", "t": 60050, "mode": "device", "expect": { "result": false } }
+      ]
+    },
+    {
+      "name": "اقفل الآن",
+      "steps": [
+        { "op": "lockNow", "t": 0, "expect": { "result": false, "unlocked": false } },
+        { "op": "unlock", "t": 1 },
+        { "op": "lockNow", "t": 2, "expect": { "result": true, "unlocked": false } }
+      ]
+    },
+    {
+      "name": "إطفاء الشاشة يقفل بلا فترة سماح إن فُعّل الخيار",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "screenOff", "t": 10, "lockOnScreenOff": false, "expect": { "result": false, "unlocked": true } },
+        { "op": "screenOff", "t": 20, "lockOnScreenOff": true, "expect": { "result": true, "unlocked": false } }
+      ]
+    },
+    {
+      "name": "إطفاء الشاشة أثناء مصادقة جارية لا يقفل",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "beginAuth", "t": 10 },
+        { "op": "screenOff", "t": 20, "lockOnScreenOff": true, "expect": { "result": false, "unlocked": true } }
+      ]
+    },
+    {
+      "name": "الخمول: يقفل بعد المدة، واللمس يؤجّله",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "idle", "t": 299999, "idleMs": 300000, "expect": { "result": false, "unlocked": true } },
+        { "op": "touch", "t": 299999 },
+        { "op": "idle", "t": 500000, "idleMs": 300000, "expect": { "result": false, "unlocked": true } },
+        { "op": "idle", "t": 599999, "idleMs": 300000, "expect": { "result": true, "unlocked": false } }
+      ]
+    },
+    {
+      "name": "الخمول معطّل (0) لا يقفل أبداً",
+      "steps": [
+        { "op": "unlock", "t": 0 },
+        { "op": "idle", "t": 99999999, "idleMs": 0, "expect": { "result": false, "unlocked": true } }
+      ]
+    },
+    {
+      "name": "ساعة راجعة (غير متّسقة) عند العودة: الأسلم القفل",
+      "steps": [
+        { "op": "unlock", "t": 1000 },
+        { "op": "stop", "t": 5000, "grace": 300000 },
+        { "op": "start", "t": 4000, "grace": 300000, "expect": { "result": true, "unlocked": false } }
+      ]
+    }
+  ]
+}

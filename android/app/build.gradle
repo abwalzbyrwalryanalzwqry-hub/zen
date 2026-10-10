@@ -1,0 +1,114 @@
+apply plugin: 'com.android.application'
+
+// توقيع الإصدار من android/keystore.properties (خارج Git، انظر docs/PLAY_STORE.md).
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
+// قفل التطبيق 1.29.0 (H1): «نسيت الرمز؟ ← كلمة مرور الحساب» تتحقق منها Java نفسها لدى Supabase Auth، فلا
+// تستطيع شيفرة الواجهة ادّعاء النجاح. العنوان والمفتاح العام مثبّتان في الحزمة وقت البناء (لا تمرّرهما الواجهة)،
+// من متغيرات البيئة (بناء الإصدار والتجريبي) وإلا من ‎.env‎ المتتبَّع (القيم العامة فقط).
+def dotenv = new Properties()
+def dotenvFile = rootProject.file("../.env")
+if (dotenvFile.exists()) {
+    dotenvFile.withInputStream { dotenv.load(it) }
+}
+def envOr = { String key ->
+    def v = System.getenv(key) ?: dotenv.getProperty(key) ?: ""
+    return v.replaceAll(/^["']|["']$/, "").trim()
+}
+def lockSupabaseUrl = envOr("VITE_SUPABASE_URL")
+def lockSupabaseKey = envOr("VITE_SUPABASE_PUBLISHABLE_KEY")
+
+android {
+    namespace = "app.zen.quran"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "app.zen.quran"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 31
+        versionName "1.37.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField "String", "LOCK_SUPABASE_URL", "\"${lockSupabaseUrl}\""
+        buildConfigField "String", "LOCK_SUPABASE_KEY", "\"${lockSupabaseKey}\""
+        // موارد Android بلغة الواجهة فقط (العربية، 1.35.0 حذف الإنجليزية)، فتُحذف ترجمات androidx وGoogle Play
+        // Services الأخرى.
+        resourceConfigurations += ["ar"]
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildFeatures {
+        buildConfig = true
+    }
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile rootProject.file(keystoreProps["storeFile"])
+                storePassword keystoreProps["storePassword"]
+                keyAlias keystoreProps["keyAlias"]
+                keyPassword keystoreProps["keyPassword"]
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+            // R8: يحذف ما لا يُستخدم من كود Java/Kotlin ومن الموارد (قواعد Capacitor والإضافات مضمَّنة في مكتباتها).
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+// حجم APK: ماسح QR في التطبيق هو «Google Code Scanner» (`BarcodeScanner.scan()` في src/lib/qr-attendance.ts)،
+// ويعمل من Google Play Services دون نموذج داخل التطبيق. أما الإضافة فتضمّ أيضاً ML Kit «المضمَّن»
+// (libbarhopper_v3.so لأربع معماريات مع نماذج tflite، نحو 21 ميغابايت) لواجهة startScan التي لا نستعملها.
+// نستبدله بنسخة Play Services من الواجهة نفسها (الأصناف نفسها في com.google.mlkit.vision.barcode)،
+// فيبقى كل شيء يعمل ويصغر الملف من 28.5 إلى 6.6 ميغابايت.
+configurations.configureEach {
+    resolutionStrategy.dependencySubstitution {
+        substitute module("com.google.mlkit:barcode-scanning") using module("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    // قفل التطبيق: BiometricPrompt الرسمية (بصمة/وجه/قفل الجهاز) على كل الإصدارات من API 24.
+    implementation "androidx.biometric:biometric:$androidxBiometricVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    // سيناريوهات جلسة القفل المشتركة (JSON) وتحليل رد Supabase في اختبارات JVM (android.jar فيه بدائل فارغة).
+    testImplementation "org.json:json:$orgJsonVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

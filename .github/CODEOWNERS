@@ -1,0 +1,13 @@
+# قفل التطبيق (1.29.0): كل تغيير في الطبقة الأمنية يحتاج مراجعة صاحب المستودع.
+/android/app/src/main/java/app/zen/quran/ZenLockPlugin.java  @abwalzbyrwalryanalzwqry-hub
+/android/app/src/main/java/app/zen/quran/AppLockPolicy.java  @abwalzbyrwalryanalzwqry-hub
+/android/app/src/main/java/app/zen/quran/LockSession.java    @abwalzbyrwalryanalzwqry-hub
+/android/app/src/main/java/app/zen/quran/LockAttempts.java   @abwalzbyrwalryanalzwqry-hub
+/android/app/src/main/java/app/zen/quran/PinVault.java       @abwalzbyrwalryanalzwqry-hub
+/android/app/src/main/java/app/zen/quran/PinKdf.java         @abwalzbyrwalryanalzwqry-hub
+/android/app/src/main/java/app/zen/quran/BioKey.java         @abwalzbyrwalryanalzwqry-hub
+/android/app/src/main/java/app/zen/quran/AccountVerifier.java @abwalzbyrwalryanalzwqry-hub
+/android/app/src/main/java/app/zen/quran/ZenLockTileService.java @abwalzbyrwalryanalzwqry-hub
+/src/lib/app-lock*.ts                                        @abwalzbyrwalryanalzwqry-hub
+/src/components/zen/lock/                                    @abwalzbyrwalryanalzwqry-hub
+/docs/APP_LOCK.md                                            @abwalzbyrwalryanalzwqry-hub

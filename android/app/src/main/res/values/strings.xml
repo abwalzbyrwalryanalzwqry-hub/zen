@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">زِن</string>
+    <string name="title_activity_main">زِن</string>
+    <string name="package_name">app.zen.quran</string>
+    <string name="custom_url_scheme">app.zen.quran</string>
+    <!-- M14: إشعار التلاوة الجارية -->
+    <string name="playback_channel">تشغيل التلاوة</string>
+    <string name="playback_channel_desc">أدوات التحكم في التلاوة الجارية</string>
+    <string name="playback_prev">السابق</string>
+    <string name="playback_pause">إيقاف مؤقت</string>
+    <string name="playback_play">تشغيل</string>
+    <string name="playback_next">التالي</string>
+    <!-- قفل التطبيق: وصف الغطاء الأصلي لقارئ الشاشة -->
+    <string name="lock_cover">زِن مقفل</string>
+    <!-- قفل التطبيق 1.29.0: بلاطة الإعدادات السريعة والإشعار العام على شاشة القفل -->
+    <string name="lock_tile_label">اقفل زِن</string>
+    <string name="lock_tile_locked">مقفل</string>
+    <string name="lock_tile_unlocked">اضغط للقفل</string>
+    <string name="lock_tile_off">القفل غير مفعّل</string>
+    <string name="playback_private_title">زِن</string>
+    <string name="playback_private_text">تلاوة جارية</string>
+</resources>

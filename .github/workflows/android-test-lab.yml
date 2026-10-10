@@ -1,0 +1,107 @@
+# المرحلة 14.2: اختبار Robo في Firebase Test Lab على 3 أجهزة (منها Android 8 ضعيف) عند كل وسم v*، أو يدوياً.
+# يبني APK للتصحيح (بلا مفتاح توقيع) من الحزمة المضمَّنة نفسها، ثم يستكشف Robo الشاشات تلقائياً ويبلّغ عن
+# الانهيارات. الأسرار (👤 U3): FIREBASE_TEST_LAB_SA (JSON لحساب خدمة بدور «Firebase Test Lab Admin»)،
+# والمتغيّر FIREBASE_PROJECT_ID. بدونهما تُتخطّى المهمة بتحذير.
+# الأجهزة قابلة للتغيير بمتغيّر المستودع TEST_LAB_DEVICES (أسطر «model=…,version=…»).
+name: Firebase Test Lab
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: test-lab-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  robo:
+    name: Robo على 3 أجهزة
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      SA_JSON: ${{ secrets.FIREBASE_TEST_LAB_SA }}
+      PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+    steps:
+      - name: التحقق من الأسرار
+        id: ready
+        run: |
+          if [ -z "$SA_JSON" ] || [ -z "$PROJECT_ID" ]; then
+            echo "::warning::FIREBASE_TEST_LAB_SA أو FIREBASE_PROJECT_ID غير مضبوط: تخطّي Test Lab."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.ready.outputs.ok == 'true'
+        uses: actions/checkout@v7
+
+      - if: steps.ready.outputs.ok == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - if: steps.ready.outputs.ok == 'true'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - if: steps.ready.outputs.ok == 'true'
+        uses: android-actions/setup-android@v4
+        with:
+          packages: "platforms;android-36 build-tools;36.0.0"
+
+      - if: steps.ready.outputs.ok == 'true'
+        name: بناء APK للتصحيح
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          npm ci
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json; fi
+          npm run build:apk-web
+          (cd android && ./gradlew --no-daemon assembleDebug)
+          rm -f android/app/google-services.json
+
+      - if: steps.ready.outputs.ok == 'true'
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.FIREBASE_TEST_LAB_SA }}
+
+      - if: steps.ready.outputs.ok == 'true'
+        uses: google-github-actions/setup-gcloud@v3
+
+      - if: steps.ready.outputs.ok == 'true'
+        name: تشغيل Robo
+        env:
+          DEVICES: ${{ vars.TEST_LAB_DEVICES }}
+        run: |
+          # الافتراضي: Android 8.0 (API 26) بجهاز افتراضي ضعيف، وAndroid 11، وAndroid 14.
+          DEVICES="${DEVICES:-model=Pixel2.arm,version=26
+          model=Pixel2.arm,version=30
+          model=MediumPhone.arm,version=34}"
+          ARGS=()
+          while IFS= read -r d; do
+            d="$(echo "$d" | xargs)"
+            [ -n "$d" ] && ARGS+=(--device "$d,locale=ar,orientation=portrait")
+          done <<< "$DEVICES"
+          gcloud firebase test android run \
+            --project "$PROJECT_ID" \
+            --type robo \
+            --app android/app/build/outputs/apk/debug/app-debug.apk \
+            "${ARGS[@]}" \
+            --timeout 8m \
+            --client-details "matrixLabel=zen-${GITHUB_REF_NAME}" 2>&1 | tee test-lab.txt
+          exit "${PIPESTATUS[0]}"
+
+      - if: always() && steps.ready.outputs.ok == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-lab-summary
+          path: test-lab.txt
+          if-no-files-found: ignore

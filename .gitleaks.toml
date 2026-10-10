@@ -1,0 +1,13 @@
+# فحص الأسرار (المستودع العام). يشغّله CI على كل دفع وطلب دمج: `gitleaks git --config .gitleaks.toml`.
+# الاستثناءات هنا مقصودة وموثَّقة؛ لا تُضف استثناءً لسرّ حقيقي — دوّره ثم احذفه.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "قيم عامة بطبيعتها أو وهمية للاختبار"
+paths = [
+  # مفتاح Supabase المنشور (anon/publishable): عام بطبيعته، والحماية في RLS.
+  '''^\.env$''',
+  # مفتاح RSA وهمي لاختبار توقيع FCM؛ لا يخصّ أي حساب.
+  '''^src/lib/fcm\.test\.ts$''',
+]

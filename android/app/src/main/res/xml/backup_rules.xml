@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- H4: النسخ الاحتياطي (Android 11 وأقدم). يُحفظ إعدادات الجهاز البسيطة فقط (ودجت اليوم وموافقة
+     تقارير الأعطال). لا يُنسخ WebView (فيه رمز الجلسة وحافظة دون اتصال) ولا قواعد البيانات ولا
+     الملفات ولا الحافظة: بيانات القراءة (العلامات والختمة والسجل) تُزامَن مع الحساب (quran_user_state). -->
+<full-backup-content>
+    <include domain="sharedpref" path="zen_widget.xml" />
+    <include domain="sharedpref" path="zen_system.xml" />
+</full-backup-content>
