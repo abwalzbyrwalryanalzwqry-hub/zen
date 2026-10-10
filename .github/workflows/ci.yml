@@ -8,7 +8,6 @@ on:
 permissions:
   contents: read
 
-# تشغيل واحد لكل فرع: الدفع الجديد يلغي التشغيل السابق فلا تُهدر دقائق Actions
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -30,13 +29,11 @@ jobs:
 
   checks:
     name: فحوصات الجودة
-    # مثبَّت على 24.04 لأن ubuntu-latest سينتقل إلى Ubuntu 26 ابتداءً من 19 أكتوبر 2026
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
-      # الإصدار من .nvmrc (22) لأن @supabase/supabase-js 2.116 يتطلب Node 22
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
@@ -44,6 +41,19 @@ jobs:
 
       - name: تثبيت الحزم
         run: npm ci
+
+      - name: توفير متغيرات Supabase العامة للبناء
+        run: |
+          cat > .env <<'EOF'
+          SUPABASE_PROJECT_ID="iniqospdljdlcfmwxafl"
+          SUPABASE_URL="https://iniqospdljdlcfmwxafl.supabase.co"
+          SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}"
+          VITE_SUPABASE_PROJECT_ID="iniqospdljdlcfmwxafl"
+          VITE_SUPABASE_URL="https://iniqospdljdlcfmwxafl.supabase.co"
+          VITE_SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}"
+          EOF
+        env:
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
 
       - name: تطابق رقم الإصدار (CHANGELOG وpackage.json وbuild.gradle)
         run: node scripts/version.mjs --check
@@ -77,13 +87,11 @@ jobs:
       - name: اختبارات قاعدة البيانات والترحيلات
         run: npm run test:db
 
-      # أنواع قاعدة البيانات مولَّدة من الترحيلات: ترحيل بلا `npm run gen:types` يفشل هنا
       - name: تطابق أنواع قاعدة البيانات مع الترحيلات
         run: npm run check:types-fresh
 
   android-unit:
     name: اختبارات Android (JUnit) وبناء التصحيح
-    # قفل التطبيق 1.29.0: سياسة القفل وآلة حالة الجلسة وKDF والتحقق من الحساب تُختبر على JVM عند كل طلب دمج.
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -104,11 +112,22 @@ jobs:
         with:
           packages: "platforms;android-36 build-tools;36.0.0"
 
-      # مشروع Gradle يقرأ مكتبات Capacitor من node_modules
       - name: تثبيت الحزم
         run: npm ci
 
-      # مشروع Gradle يحتاج capacitor-cordova-android-plugins وملفات الواجهة المولَّدة بـ cap sync (كما في android-release)
+      - name: توفير متغيرات Supabase العامة للبناء
+        run: |
+          cat > .env <<'EOF'
+          SUPABASE_PROJECT_ID="iniqospdljdlcfmwxafl"
+          SUPABASE_URL="https://iniqospdljdlcfmwxafl.supabase.co"
+          SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}"
+          VITE_SUPABASE_PROJECT_ID="iniqospdljdlcfmwxafl"
+          VITE_SUPABASE_URL="https://iniqospdljdlcfmwxafl.supabase.co"
+          VITE_SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}"
+          EOF
+        env:
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+
       - name: بناء الحزمة المضمَّنة ومزامنة Capacitor
         run: npm run build:apk-web
 
@@ -126,7 +145,6 @@ jobs:
 
   e2e:
     name: اختبارات E2E (حزمة Android في Chrome بمقاس Pixel 7)
-    # المرحلة 14.1: بعد نجاح الفحوصات. تعمل على الحزمة المضمَّنة نفسها مع Supabase وهمي، فلا أسرار.
     needs: checks
     runs-on: ubuntu-24.04
     timeout-minutes: 40
