@@ -45,7 +45,7 @@ jobs:
 
       - name: توفير متغيرات Supabase العامة للبناء
         run: |
-          cat > .env <<'EOF'
+          cat > .env <<EOF
           SUPABASE_PROJECT_ID="iniqospdljdlcfmwxafl"
           SUPABASE_URL="https://iniqospdljdlcfmwxafl.supabase.co"
           SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}"
@@ -118,7 +118,7 @@ jobs:
 
       - name: توفير متغيرات Supabase العامة للبناء
         run: |
-          cat > .env <<'EOF'
+          cat > .env <<EOF
           SUPABASE_PROJECT_ID="iniqospdljdlcfmwxafl"
           SUPABASE_URL="https://iniqospdljdlcfmwxafl.supabase.co"
           SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY}"
