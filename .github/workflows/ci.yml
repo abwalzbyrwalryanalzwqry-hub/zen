@@ -1,3 +1,4 @@
+# CI: يستخدم سر SUPABASE_PUBLISHABLE_KEY لتوفير متغيرات Supabase العامة أثناء البناء.
 name: CI
 
 on:
