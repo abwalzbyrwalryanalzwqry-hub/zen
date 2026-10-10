@@ -28,9 +28,9 @@ jobs:
       - name: Deploy zen-tools
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase functions deploy zen-tools --project-ref "$SUPABASE_PROJECT_ID"
+        run: supabase functions deploy zen-tools --project-ref iniqospdljdlcfmwxafl
 
       - name: Deploy zen-recitation
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase functions deploy zen-recitation --project-ref "$SUPABASE_PROJECT_ID"
+        run: supabase functions deploy zen-recitation --project-ref iniqospdljdlcfmwxafl
