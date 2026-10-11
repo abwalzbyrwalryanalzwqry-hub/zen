@@ -9,7 +9,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
 import { dirOf, initLocale, useLocale } from "@/lib/i18n";
 import { track } from "@/lib/usage";
@@ -23,6 +23,7 @@ import { applySystemFontScale, sendPendingCrashReport } from "../lib/native-syst
 import { RecitationPlayerProvider } from "@/hooks/quran/recitation-host";
 import { PERF_BOOT_SCRIPT } from "@/lib/perf-mode";
 import { AppLockGate } from "@/components/zen/lock/AppLockGate";
+import { areThmanyahFontsSupported, loadThmanyahFonts } from "@/lib/thmanyah-fonts";
 
 // إشعارات تحميل التلاوات خارج الحزمة الأولى (M1): تُحمَّل بعد الإقلاع مباشرة، ولا تحميل قبل أن
 // يفتح المستخدم شاشة التلاوات.
@@ -160,6 +161,31 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function FontsGate({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(!areThmanyahFontsSupported());
+
+  useEffect(() => {
+    if (!areThmanyahFontsSupported()) return;
+    let active = true;
+    void loadThmanyahFonts().finally(() => {
+      if (active) setReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground" dir="rtl">
+        جاري تجهيز الخطوط…
+      </div>
+    );
+  }
+
+  return children;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
@@ -173,18 +199,15 @@ function RootComponent() {
     void startNetworkMonitor(); // حالة الاتصال من النظام لا من WebView (M7)
     void applySystemFontScale(); // خط النظام ← حجم الخط في التطبيق ما لم يختر المستخدم (H5)
     void sendPendingCrashReport(RELEASE); // عطل أصلي سابق، بموافقة فقط (L7)
-    // ملفات التصدير المؤقتة الأقدم من يوم (1.17.0)، بعد أن يهدأ التشغيل.
     const pruneTimer = window.setTimeout(() => {
       void import("@/lib/export-cache").then((m) => m.pruneExports()).catch(() => undefined);
     }, 8000);
-    const offResume = installAppResume(); // تحديث البيانات عند العودة من الخلفية
-    // في تطبيق الهاتف: النقر على إشعار يفتح صفحته داخل التطبيق.
+    const offResume = installAppResume();
     const offShell = installNativeShell({
       go: (path) => router.history.push(path),
       back: () => router.history.back(),
       home: () => void router.navigate({ to: "/today", replace: true }),
       path: () => router.state.location.pathname,
-      // إشعار وصل والتطبيق مفتوح: يعرضه النظام بصوت الجوال، وهنا تتحدّث العدّادات وقائمة الإشعارات.
       onPush: () => {
         void queryClient.invalidateQueries({ queryKey: ["unread-notifications"] });
         void queryClient.invalidateQueries({ queryKey: ["more-badges"] });
@@ -199,21 +222,20 @@ function RootComponent() {
   }, [router, queryClient]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      {/* مشغّل التلاوة المشترك لقسم المصحف: عنصر صوت واحد تستمر تلاوته بين الشاشات. */}
-      {/* قفل التطبيق (1.28.0): لا تُركَّب الصفحات قبل أول فتح ناجح، وتُحجب كلها عند إعادة القفل. */}
-      <AppLockGate>
-        <RecitationPlayerProvider>
-          <Outlet />
-          <Suspense fallback={null}>
-            <RecitationDownloadNotifier />
-          </Suspense>
-        </RecitationPlayerProvider>
-      </AppLockGate>
-      <Suspense fallback={null}>
-        <Toaster position="top-center" dir={dirOf(locale)} richColors closeButton={false} />
-      </Suspense>
-    </QueryClientProvider>
+    <FontsGate>
+      <QueryClientProvider client={queryClient}>
+        <AppLockGate>
+          <RecitationPlayerProvider>
+            <Outlet />
+            <Suspense fallback={null}>
+              <RecitationDownloadNotifier />
+            </Suspense>
+          </RecitationPlayerProvider>
+        </AppLockGate>
+        <Suspense fallback={null}>
+          <Toaster position="top-center" dir={dirOf(locale)} richColors closeButton={false} />
+        </Suspense>
+      </QueryClientProvider>
+    </FontsGate>
   );
 }
