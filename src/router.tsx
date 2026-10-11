@@ -6,14 +6,12 @@ import { areThmanyahFontsSupported, loadThmanyahFonts } from "./lib/thmanyah-fon
 
 installNativeShim();
 
-// انتظر خطوط Android قبل أول تصيير كي لا تُرسم الواجهة بخط بديل ثم تتبدل.
-// لا نحجب بدء نسخة الويب، ولا فشل تحميل الخطوط؛ عند الفشل يستخدم التطبيق Zen Text.
-const fontsReady = areThmanyahFontsSupported()
-  ? loadThmanyahFonts().catch(() => false)
-  : Promise.resolve(false);
+// لا نغيّر عقد getRouter لدى TanStack Start؛ تحميل الخطوط اختياري وخلفي.
+if (areThmanyahFontsSupported()) {
+  void loadThmanyahFonts().catch(() => false);
+}
 
-export const getRouter = async () => {
-  await fontsReady;
+export const getRouter = () => {
   const queryClient = createQueryClient();
 
   return createRouter({
