@@ -55,12 +55,10 @@ Deno.serve(async (req) => {
   const day = startedAt.slice(0, 10);
   const path = `${FOLDER}/${day}.json.gz`;
 
-  const { error: uploadError } = await admin.storage
-    .from(BUCKET)
-    .upload(path, compressed, {
-      contentType: "application/gzip",
-      upsert: true,
-    });
+  const { error: uploadError } = await admin.storage.from(BUCKET).upload(path, compressed, {
+    contentType: "application/gzip",
+    upsert: true,
+  });
 
   if (uploadError) {
     await admin.from("backup_runs").insert({

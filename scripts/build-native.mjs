@@ -37,7 +37,7 @@ if (!existsSync(join(OUT, "index.html"))) {
 
 const mushafDir = join(OUT, "data/quran/mushaf15");
 const pages = existsSync(mushafDir)
- ? readdirSync(mushafDir).filter((f) => f.endsWith(".json")).length
+  ? readdirSync(mushafDir).filter((f) => f.endsWith(".json")).length
   : 0;
 if (pages !== PAGES) throw new Error(`صفحات المصحف في الحزمة ${pages} من ${PAGES}`);
 if (!existsSync(join(OUT, "fonts/kfgqpc-hafs-uthmanic-v18.woff2"))) {
