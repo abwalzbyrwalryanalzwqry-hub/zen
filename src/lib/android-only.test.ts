@@ -43,7 +43,6 @@ describe("Android فقط، بلا ويب", () => {
     const allowed = new Set(["src/lib/native-file.ts", "src/lib/quran/share-io.ts"]);
     const bad = /\.download\s*=|window\.open\(|window\.print\(\)/;
     const offenders = src.filter((f) => !allowed.has(f.replaceAll("\\", "/")) && bad.test(read(f)));
-    // نصوص صفحات التقارير المولَّدة تحوي window.print() داخل قالب HTML يُزال في التطبيق (stripAutoPrint).
     const code = offenders.filter(
       (f) =>
         !/\\u003Cscript>window\.onload = \(\) => setTimeout\(\(\) => window\.print\(\)/.test(
@@ -59,5 +58,17 @@ describe("Android فقط، بلا ويب", () => {
     const edge = read("supabase/functions/zen-push-dispatch/index.ts");
     expect(edge).not.toMatch(/vapid|webpush/i);
     expect(edge).toContain("FCM_SERVICE_ACCOUNT");
+  });
+
+  it("Router يبقى متزامنًا، وAndroid ينتظر نتيجة تحميل الخطوط قبل تركيب الصفحات", () => {
+    const router = read("src/router.tsx");
+    expect(router).toContain("export const getRouter = () =>");
+    expect(router).not.toContain("export const getRouter = async");
+
+    const root = read("src/routes/__root.tsx");
+    expect(root).toContain("function FontsGate");
+    expect(root).toContain("setReady(!areThmanyahFontsSupported())");
+    expect(root).toContain("void loadThmanyahFonts().finally");
+    expect(root).toContain("<FontsGate>");
   });
 });

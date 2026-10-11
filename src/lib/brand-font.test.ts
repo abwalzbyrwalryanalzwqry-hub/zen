@@ -1,7 +1,6 @@
 /**
  * حارس P0-03 (تدقيق أكتوبر 2026): خط الواجهة البديل مرخّص ومعروض في «المصادر» مع نص رخصته.
- * منذ 1.38.0: يُسمح بنظام خطوط ثمانية داخل Android فقط عبر src/lib/thmanyah-fonts.ts،
- * مع منع أي استخدام آخر لعائلة Thmanyah خارج الملفات المصرّح بها.
+ * يُسمح بنظام خطوط ثمانية داخل Android فقط عبر الملفات المحددة أدناه.
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -21,6 +20,7 @@ function walk(dir: string, out: string[] = []): string[] {
 const THMANYAH_ALLOWED_FILES = new Set([
   join("src", "lib", "thmanyah-fonts.ts"),
   join("src", "router.tsx"),
+  join("src", "routes", "__root.tsx"),
   join("src", "styles.css"),
 ]);
 
