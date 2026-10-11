@@ -1,6 +1,5 @@
 // نظام خطوط ثمانية المركزي لتطبيق زِن.
 // يعمل داخل Android/Capacitor فقط، ولا يحمّل الخطوط في نسخة الويب العامة.
-// تُضمّن خمسة ملفات فقط لتقليل حجم APK مع الحفاظ على الهوية البصرية.
 import { Capacitor } from "@capacitor/core";
 
 export const THMANYAH_FONT_FAMILIES = {
@@ -9,16 +8,10 @@ export const THMANYAH_FONT_FAMILIES = {
   reading: "Thmanyah Serif Text",
 } as const;
 
-/** الأوزان المضمّنة فعليًا في APK. */
 export const THMANYAH_FONT_WEIGHTS = [400, 500, 700] as const;
 
-type ThmanyahFontFile = {
-  family: string;
-  weight: number;
-  file: string;
-};
+type ThmanyahFontFile = { family: string; weight: number; file: string };
 
-// خمسة ملفات فقط: Sans للنص والواجهات، Display للعناوين، Text للقراءة الطويلة.
 const FONT_FILES: ThmanyahFontFile[] = [
   { family: THMANYAH_FONT_FAMILIES.primary, weight: 400, file: "thmanyahsans-Regular.woff2" },
   { family: THMANYAH_FONT_FAMILIES.primary, weight: 500, file: "thmanyahsans-Medium.woff2" },
@@ -27,56 +20,61 @@ const FONT_FILES: ThmanyahFontFile[] = [
   { family: THMANYAH_FONT_FAMILIES.reading, weight: 400, file: "thmanyahseriftext-Regular.woff2" },
 ];
 
-const loadedFamilies = new Set<string>();
+let loadPromise: Promise<boolean> | undefined;
 
-/**
- * تعيش الملفات في جذر WebView النهائي الذي يتحقق منه build-native.mjs قبل cap sync.
- * هذا المسار المطلق يصبح capacitor://localhost/fonts/... في Android.
- */
 function fontUrl(file: string): string {
   return new URL(`/fonts/thmanyah/${file}`, window.location.origin).href;
 }
 
-/** يحمّل الخطوط داخل حزمة Android/Capacitor فقط. */
-export async function loadThmanyahFonts(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
-  if (typeof document === "undefined" || !("fonts" in document)) return false;
+/** يحمّل ويتحقق من كل ملفات الخطوط قبل تفعيل متغيرات CSS. */
+export function loadThmanyahFonts(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return Promise.resolve(false);
+  if (typeof document === "undefined" || !("fonts" in document)) return Promise.resolve(false);
+  if (loadPromise) return loadPromise;
 
-  for (const font of FONT_FILES) {
-    const key = `${font.family}:${font.weight}`;
-    if (loadedFamilies.has(key)) continue;
+  loadPromise = (async () => {
+    const root = document.documentElement;
+    root.dataset.thmanyahFonts = "loading";
+    const results = await Promise.allSettled(
+      FONT_FILES.map(async (font) => {
+        const face = new FontFace(font.family, `url(${fontUrl(font.file)}) format("woff2")`, {
+          weight: String(font.weight),
+          display: "swap",
+        });
+        await face.load();
+        document.fonts.add(face);
+        return font;
+      }),
+    );
 
-    try {
-      const face = new FontFace(font.family, `url(${fontUrl(font.file)}) format("woff2")`, {
-        weight: String(font.weight),
-        display: "swap",
-      });
-      await face.load();
-      document.fonts.add(face);
-      loadedFamilies.add(key);
-    } catch {
-      // فشل وزن واحد لا يعطّل بدء التطبيق؛ خط Zen Text يبقى بديلًا.
+    const failures = results.flatMap((result, index) =>
+      result.status === "rejected" ? [FONT_FILES[index].file] : [],
+    );
+    root.dataset.thmanyahFontsLoaded = String(FONT_FILES.length - failures.length);
+    root.dataset.thmanyahFontsFailed = failures.join(",");
+
+    if (failures.length > 0) {
+      root.dataset.thmanyahFonts = "fallback";
+      return false;
     }
-  }
 
-  // لا نُعلن عائلات ثمانية كخطوط أساسية إلا بعد تحميل ملف واحد منها بنجاح.
-  if (loadedFamilies.size === 0) return false;
+    root.style.setProperty(
+      "--zen-font-sans",
+      `"${THMANYAH_FONT_FAMILIES.primary}", "Zen Text", system-ui, sans-serif`,
+    );
+    root.style.setProperty(
+      "--zen-font-display",
+      `"${THMANYAH_FONT_FAMILIES.display}", "${THMANYAH_FONT_FAMILIES.primary}", serif`,
+    );
+    root.style.setProperty(
+      "--zen-font-reading",
+      `"${THMANYAH_FONT_FAMILIES.reading}", "${THMANYAH_FONT_FAMILIES.primary}", serif`,
+    );
+    root.dataset.thmanyahFonts = "loaded";
+    return true;
+  })();
 
-  const root = document.documentElement;
-  root.style.setProperty(
-    "--zen-font-sans",
-    `"${THMANYAH_FONT_FAMILIES.primary}", "Zen Text", system-ui, sans-serif`,
-  );
-  root.style.setProperty(
-    "--zen-font-display",
-    `"${THMANYAH_FONT_FAMILIES.display}", "${THMANYAH_FONT_FAMILIES.primary}", serif`,
-  );
-  root.style.setProperty(
-    "--zen-font-reading",
-    `"${THMANYAH_FONT_FAMILIES.reading}", "${THMANYAH_FONT_FAMILIES.primary}", serif`,
-  );
-
-  return true;
+  return loadPromise;
 }
 
 export function areThmanyahFontsSupported(): boolean {
