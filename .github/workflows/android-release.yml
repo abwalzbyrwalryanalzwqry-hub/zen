@@ -41,7 +41,7 @@ jobs:
             "https://x-access-token:${FONTS_TOKEN}@github.com/abwalzbyrwalryanalzwqry-hub/zen-fonts.git" \
             /tmp/zen-fonts
           mkdir -p public/fonts/thmanyah
-          cp /tmp/zen-fonts/*.otf public/fonts/thmanyah/
+          cp /tmp/zen-fonts/*.woff2 public/fonts/thmanyah/
           rm -rf /tmp/zen-fonts
           ls -1 public/fonts/thmanyah
 
