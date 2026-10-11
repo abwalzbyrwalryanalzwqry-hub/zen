@@ -177,7 +177,10 @@ function FontsGate({ children }: { children: ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-foreground" dir="rtl">
+      <div
+        className="flex min-h-screen items-center justify-center bg-background text-foreground"
+        dir="rtl"
+      >
         جاري تجهيز الخطوط…
       </div>
     );
