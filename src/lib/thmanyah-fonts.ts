@@ -30,12 +30,11 @@ const FONT_FILES: ThmanyahFontFile[] = [
 const loadedFamilies = new Set<string>();
 
 /**
- * رابط أصل متوافق مع Capacitor. المسار المطلق `/fonts/…` لا يحافظ على أصل
- * `capacitor://localhost` في بعض WebView؛ بناء الرابط من document.baseURI يحلّه
- * إلى الملفات المنسوخة داخل `dist-native/client`.
+ * تعيش الملفات في جذر WebView النهائي الذي يتحقق منه build-native.mjs قبل cap sync.
+ * هذا المسار المطلق يصبح capacitor://localhost/fonts/... في Android.
  */
 function fontUrl(file: string): string {
-  return new URL(`fonts/thmanyah/${file}`, document.baseURI).href;
+  return new URL(`/fonts/thmanyah/${file}`, window.location.origin).href;
 }
 
 /** يحمّل الخطوط داخل حزمة Android/Capacitor فقط. */
