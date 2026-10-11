@@ -11,7 +11,7 @@ import {
 } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 
-import { dirOf, initLocale, useLocale } from "@/lib/i18n";
+import { dirOf, initLocale, useLocale, t } from "@/lib/i18n";
 import { track } from "@/lib/usage";
 
 import appCss from "../styles.css?url";
@@ -25,9 +25,6 @@ import { PERF_BOOT_SCRIPT } from "@/lib/perf-mode";
 import { AppLockGate } from "@/components/zen/lock/AppLockGate";
 import { areThmanyahFontsSupported, loadThmanyahFonts } from "@/lib/thmanyah-fonts";
 
-// إشعارات تحميل التلاوات خارج الحزمة الأولى (M1): تُحمَّل بعد الإقلاع مباشرة، ولا تحميل قبل أن
-// يفتح المستخدم شاشة التلاوات.
-// sonner خارج الحزمة الأولى (M1)؛ `@/lib/toast` ينتظر تركيبه قبل أي إشعار.
 const Toaster = lazy(() => import("@/components/ui/sonner"));
 const RecitationDownloadNotifier = lazy(() =>
   import("@/components/zen/quran/recitation-bar").then((m) => ({
@@ -65,7 +62,6 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   useEffect(() => {
     reportLovableError(normalized, { boundary: "tanstack_root_error_component" });
     reportError(normalized, { boundary: "root" });
-    // يُبلّغ مرة واحدة لكل خطأ فعلي.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [error]);
 
@@ -107,8 +103,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      // قفل التطبيق 1.29.0 (L6): CSP محافظة لا تكسر جسر Capacitor المضمَّن (لا script-src): لا إضافات
-      // <object>/<embed>، ولا <base> يغيّر وجهة الروابط النسبية. التفاصيل في docs/APP_LOCK.md.
       { httpEquiv: "Content-Security-Policy", content: "object-src 'none'; base-uri 'self'" },
       { name: "theme-color", content: "#0d2a22" },
       { name: "mobile-web-app-capable", content: "yes" },
@@ -126,11 +120,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-      // خطوط نص القرآن (أميري قرآن، شهرزاد، نسخ) لقسم المصحف — مستضافة ذاتياً.
+      { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: "/fonts/quran-fonts.css" },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
@@ -163,7 +153,6 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function FontsGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(!areThmanyahFontsSupported());
-
   useEffect(() => {
     if (!areThmanyahFontsSupported()) return;
     let active = true;
@@ -174,34 +163,30 @@ function FontsGate({ children }: { children: ReactNode }) {
       active = false;
     };
   }, []);
-
   if (!ready) {
     return (
       <div
         className="flex min-h-screen items-center justify-center bg-background text-foreground"
         dir="rtl"
       >
-        جاري تجهيز الخطوط…
+        {t("common.preparingFonts")}
       </div>
     );
   }
-
   return children;
 }
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
-
-  // تطبيق Android فقط: لا عامل خدمة (الملفات كلها داخل التطبيق)، والإشعارات من FCM.
   const locale = useLocale();
   useEffect(() => {
     installErrorMonitoring();
-    void initLocale(); // اللغة المحفوظة واتجاهها (13.1)
-    track("app_open"); // مرة في اليوم وبموافقة فقط (13.4)
-    void startNetworkMonitor(); // حالة الاتصال من النظام لا من WebView (M7)
-    void applySystemFontScale(); // خط النظام ← حجم الخط في التطبيق ما لم يختر المستخدم (H5)
-    void sendPendingCrashReport(RELEASE); // عطل أصلي سابق، بموافقة فقط (L7)
+    void initLocale();
+    track("app_open");
+    void startNetworkMonitor();
+    void applySystemFontScale();
+    void sendPendingCrashReport(RELEASE);
     const pruneTimer = window.setTimeout(() => {
       void import("@/lib/export-cache").then((m) => m.pruneExports()).catch(() => undefined);
     }, 8000);
