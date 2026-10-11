@@ -2,24 +2,24 @@ import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 import { installNativeShim } from "./lib/offline/native-shim";
 import { createQueryClient } from "./lib/query-client";
-import { loadThmanyahFonts } from "./lib/thmanyah-fonts";
+import { areThmanyahFontsSupported, loadThmanyahFonts } from "./lib/thmanyah-fonts";
 
 installNativeShim();
 
-// خطوط ثمانية: تُحمّل داخل حزمة Android/Capacitor فقط، ولا تُحمّل في نسخة الويب العامة.
-void loadThmanyahFonts().catch(() => {
-  // فشل تحميل الخط لا يجب أن يعطّل بدء التطبيق؛ تبقى خطوط النظام بديلاً.
-});
+// انتظر خطوط Android قبل أول تصيير كي لا تُرسم الواجهة بخط بديل ثم تتبدل.
+// لا نحجب بدء نسخة الويب، ولا فشل تحميل الخطوط؛ عند الفشل يستخدم التطبيق Zen Text.
+const fontsReady = areThmanyahFontsSupported()
+  ? loadThmanyahFonts().catch(() => false)
+  : Promise.resolve(false);
 
-export const getRouter = () => {
+export const getRouter = async () => {
+  await fontsReady;
   const queryClient = createQueryClient();
 
-  const router = createRouter({
+  return createRouter({
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
   });
-
-  return router;
 };
