@@ -4,6 +4,7 @@
 # - AAB وAPK مرفقان للتشغيل، وAAB إلى المسار الداخلي في Google Play إن وُجد PLAY_SERVICE_ACCOUNT_JSON.
 # الأسرار (docs/PLAY_STORE.md): ANDROID_KEYSTORE_BASE64 وANDROID_KEYSTORE_PASSWORD وANDROID_KEY_ALIAS
 # وANDROID_KEY_PASSWORD (اختياري، الافتراضي كلمة المخزن)، وGOOGLE_SERVICES_JSON وPLAY_SERVICE_ACCOUNT_JSON (اختياريان).
+# خطوط ثمانية: تُجلب من المستودع الخاص zen-fonts عبر FONTS_REPO_TOKEN، ولا تُرفع إلى هذا المستودع العام.
 name: إصدار Android
 
 on:
@@ -27,6 +28,22 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+
+      - name: جلب خطوط ثمانية من المستودع الخاص
+        env:
+          FONTS_TOKEN: ${{ secrets.FONTS_REPO_TOKEN }}
+        run: |
+          if [ -z "$FONTS_TOKEN" ]; then
+            echo "::error::سر FONTS_REPO_TOKEN غير مضبوط في أسرار مستودع zen."
+            exit 1
+          fi
+          git clone --depth 1 \
+            "https://x-access-token:${FONTS_TOKEN}@github.com/abwalzbyrwalryanalzwqry-hub/zen-fonts.git" \
+            /tmp/zen-fonts
+          mkdir -p public/fonts/thmanyah
+          cp /tmp/zen-fonts/*.woff2 public/fonts/thmanyah/
+          rm -rf /tmp/zen-fonts
+          ls -1 public/fonts/thmanyah
 
       - uses: actions/setup-node@v7
         with:
