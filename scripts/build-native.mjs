@@ -49,7 +49,7 @@ if (!existsSync(join(OUT, "fonts/kfgqpc-hafs-uthmanic-v18.woff2"))) {
 const sourceFonts = join(ROOT, "public/fonts/thmanyah");
 const targetFonts = join(OUT, "fonts/thmanyah");
 mkdirSync(targetFonts, { recursive: true });
-const bundledThmanyahFonts: string[] = [];
+const bundledThmanyahFonts = [];
 for (const file of THMANYAH_FONT_FILES) {
   const source = join(sourceFonts, file);
   if (!existsSync(source)) continue;
