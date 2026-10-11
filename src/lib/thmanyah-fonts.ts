@@ -29,6 +29,15 @@ const FONT_FILES: ThmanyahFontFile[] = [
 
 const loadedFamilies = new Set<string>();
 
+/**
+ * رابط أصل متوافق مع Capacitor. المسار المطلق `/fonts/…` لا يحافظ على أصل
+ * `capacitor://localhost` في بعض WebView؛ بناء الرابط من document.baseURI يحلّه
+ * إلى الملفات المنسوخة داخل `dist-native/client`.
+ */
+function fontUrl(file: string): string {
+  return new URL(`fonts/thmanyah/${file}`, document.baseURI).href;
+}
+
 /** يحمّل الخطوط داخل حزمة Android/Capacitor فقط. */
 export async function loadThmanyahFonts(): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return false;
@@ -39,11 +48,10 @@ export async function loadThmanyahFonts(): Promise<boolean> {
     if (loadedFamilies.has(key)) continue;
 
     try {
-      const face = new FontFace(
-        font.family,
-        `url(/fonts/thmanyah/${font.file}) format("woff2")`,
-        { weight: String(font.weight), display: "swap" },
-      );
+      const face = new FontFace(font.family, `url(${fontUrl(font.file)}) format("woff2")`, {
+        weight: String(font.weight),
+        display: "swap",
+      });
       await face.load();
       document.fonts.add(face);
       loadedFamilies.add(key);
@@ -51,6 +59,9 @@ export async function loadThmanyahFonts(): Promise<boolean> {
       // فشل وزن واحد لا يعطّل بدء التطبيق؛ خط Zen Text يبقى بديلًا.
     }
   }
+
+  // لا نُعلن عائلات ثمانية كخطوط أساسية إلا بعد تحميل ملف واحد منها بنجاح.
+  if (loadedFamilies.size === 0) return false;
 
   const root = document.documentElement;
   root.style.setProperty(
@@ -66,7 +77,7 @@ export async function loadThmanyahFonts(): Promise<boolean> {
     `"${THMANYAH_FONT_FAMILIES.reading}", "${THMANYAH_FONT_FAMILIES.primary}", serif`,
   );
 
-  return loadedFamilies.size > 0;
+  return true;
 }
 
 export function areThmanyahFontsSupported(): boolean {
