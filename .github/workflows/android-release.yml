@@ -1,6 +1,7 @@
 # بناء إصدار Android موقَّع: عند وسم v* أو يدوياً.
 # خطوط ثمانية تُجلب من المستودع الخاص zen-fonts عبر FONTS_REPO_TOKEN.
 # التوقيع: يستخدم أسرار التوقيع إن وُجدت، وإلا يولّد مفتاحاً مؤقتاً لهذا البناء.
+# APK وAAB يُحفظان دائماً في إصدار مسودة خاص بالمستودع بعد كل بناء ناجح.
 name: إصدار Android
 
 on:
@@ -149,15 +150,21 @@ jobs:
           path: out/
           retention-days: 30
 
-      - name: حفظ الحزم في إصدار مسودة (احتياط الحصة)
-        if: steps.artifact.outcome == 'failure' && github.ref_type != 'tag'
+      # حفظ APK وAAB دائماً في إصدار مسودة خاص بالمستودع، بمعزل عن حصة مرفقات Actions.
+      - name: حفظ الحزم في إصدار مسودة
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
-          TAG="build-v${VERSION_NAME}-vc${VERSION_CODE}"
-          gh release create "$TAG" out/* --draft --target "$GITHUB_SHA" \
-            --title "زِن $VERSION_NAME (versionCode $VERSION_CODE)" --notes "بناء يدوي؛ حصة مرفقات Actions ممتلئة."
+          TAG="build-v${VERSION_NAME}-vc${VERSION_CODE}-run${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" \
+            out/zen-${VERSION_NAME}-vc${VERSION_CODE}.apk \
+            out/zen-${VERSION_NAME}-vc${VERSION_CODE}.aab \
+            out/SHA256SUMS \
+            --draft --target "$GITHUB_SHA" \
+            --title "زِن $VERSION_NAME (versionCode $VERSION_CODE) — تشغيل $GITHUB_RUN_NUMBER" \
+            --notes "بناء يدوي يتضمن خطوط ثمانية. حمّل ملف .apk للتثبيت المباشر."
           echo "الحزم في الإصدار المسودة \`$TAG\`." >> "$GITHUB_STEP_SUMMARY"
 
       - name: مرفقات الإصدار في GitHub
