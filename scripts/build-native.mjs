@@ -4,7 +4,7 @@
  *   1. واجهة SPA كاملة في dist-native/client (بلا خادم، ZEN_NATIVE=1).
  *   2. المصحف كاملاً داخل الحزمة تلقائياً: صفحات مصحف المدينة الـ604 ملفات نصية صغيرة في
  *      public/data/quran/mushaf15 (نحو 2.4 ميغابايت) مع خط مجمع الملك فهد في public/fonts.
- *   3. خطوط ثمانية الخمسة تُنسخ صراحة إلى ناتج WebView النهائي ويُتحقق منها قبل cap sync.
+ *   3. خطوط ثمانية الخمسة تُنسخ صراحة إلى ناتج WebView النهائي عند توفرها؛ غيابها لا يوقف البناء.
  *   4. `cap sync android` لنسخها إلى مشروع أندرويد.
  *
  * الاستخدام:  npm run build:apk-web   ثم   cd android && ./gradlew assembleRelease
@@ -45,15 +45,18 @@ if (!existsSync(join(OUT, "fonts/kfgqpc-hafs-uthmanic-v18.woff2"))) {
 }
 
 // لا نعتمد على نسخ public الضمني: نضع خطوط ثمانية صراحة في جذر WebView الذي ينسخه Capacitor.
+// خطوط ثمانية اختيارية: إذا لم تُرفع ملفاتها بعد، يكمل البناء بخط Zen Text البديل.
 const sourceFonts = join(ROOT, "public/fonts/thmanyah");
 const targetFonts = join(OUT, "fonts/thmanyah");
 mkdirSync(targetFonts, { recursive: true });
+const bundledThmanyahFonts: string[] = [];
 for (const file of THMANYAH_FONT_FILES) {
   const source = join(sourceFonts, file);
-  if (!existsSync(source)) throw new Error(`خط ثمانية مفقود قبل الحزمة: ${source}`);
+  if (!existsSync(source)) continue;
   copyFileSync(source, join(targetFonts, file));
+  bundledThmanyahFonts.push(file);
 }
-for (const file of THMANYAH_FONT_FILES) {
+for (const file of bundledThmanyahFonts) {
   const bundled = join(targetFonts, file);
   if (!existsSync(bundled) || statSync(bundled).size === 0) {
     throw new Error(`خط ثمانية مفقود أو فارغ في ناتج Android: ${bundled}`);
@@ -61,7 +64,11 @@ for (const file of THMANYAH_FONT_FILES) {
 }
 
 console.log(`المصحف مضمَّن: ${pages} صفحة.`);
-console.log(`خطوط ثمانية مضمّنة ومتحقق منها: ${THMANYAH_FONT_FILES.length} ملفات.`);
+if (bundledThmanyahFonts.length > 0) {
+  console.log(`خطوط ثمانية مضمّنة ومتحقق منها: ${bundledThmanyahFonts.length} ملفات.`);
+} else {
+  console.log("خطوط ثمانية غير متوفرة؛ سيُستخدم خط Zen Text البديل.");
+}
 
 if (!process.argv.includes("--no-sync")) {
   run("npx cap sync android");
