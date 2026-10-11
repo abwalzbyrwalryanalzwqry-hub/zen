@@ -1,6 +1,7 @@
 /**
- * حارس P0-03 (تدقيق أكتوبر 2026): لا ملفات ولا مراجع لخط «ثمانية» في الحزمة، وخط الواجهة البديل مرخَّص
- * ومعروض في «المصادر» مع نص رخصته.
+ * حارس P0-03 (تدقيق أكتوبر 2026): خط الواجهة البديل مرخّص ومعروض في «المصادر» مع نص رخصته.
+ * منذ 1.38.0: يُسمح بنظام خطوط ثمانية داخل Android فقط عبر src/lib/thmanyah-fonts.ts،
+ * مع منع أي استخدام آخر لعائلة Thmanyah خارج الملفات المصرّح بها.
  */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -17,15 +18,24 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
+const THMANYAH_ALLOWED_FILES = new Set([
+  join("src", "lib", "thmanyah-fonts.ts"),
+  join("src", "router.tsx"),
+  join("src", "styles.css"),
+]);
+
 describe("خط الواجهة (P0-03)", () => {
-  it("لا ملفات «ثمانية» في src أو public", () => {
+  it("ملفات «ثمانية» محصورة في محمّل Android المصرّح به", () => {
     const files = [...walk("src"), ...walk("public")];
-    expect(files.filter((f) => /thmanyah/i.test(f))).toEqual([]);
+    expect(files.filter((f) => /thmanyah/i.test(f))).toEqual([
+      join("src", "lib", "thmanyah-fonts.ts"),
+    ]);
   });
 
-  it("لا مرجع لـ Thmanyah في الشيفرة (عدا هذا الحارس وملاحظة الترحيل)", () => {
+  it("لا مرجع لـ Thmanyah خارج نظام خطوط Android المصرّح به", () => {
     const offenders = walk("src")
       .filter((f) => /\.(ts|tsx|css|json)$/.test(f) && !f.endsWith("brand-font.test.ts"))
+      .filter((f) => !THMANYAH_ALLOWED_FILES.has(f))
       .filter((f) => {
         const s = readFileSync(f, "utf8");
         return /thmanyah/i.test(s.replace(/تحمل "Thmanyah"/g, ""));
