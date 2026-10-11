@@ -1,10 +1,6 @@
-# بناء إصدار Android موقَّع (المرحلة 6.7): عند وسم v* أو يدوياً.
-# - رقم الإصدار من CHANGELOG (scripts/version.mjs)، وversionCode من رقم التشغيل + 100 فيزيد دائماً.
-# - المفتاح وgoogle-services.json من الأسرار ولا يُحفظان في Git ولا في المرفقات.
-# - AAB وAPK مرفقان للتشغيل، وAAB إلى المسار الداخلي في Google Play إن وُجد PLAY_SERVICE_ACCOUNT_JSON.
-# الأسرار (docs/PLAY_STORE.md): ANDROID_KEYSTORE_BASE64 وANDROID_KEYSTORE_PASSWORD وANDROID_KEY_ALIAS
-# وANDROID_KEY_PASSWORD (اختياري، الافتراضي كلمة المخزن)، وGOOGLE_SERVICES_JSON وPLAY_SERVICE_ACCOUNT_JSON (اختياريان).
-# خطوط ثمانية: تُجلب من المستودع الخاص zen-fonts عبر FONTS_REPO_TOKEN، ولا تُرفع إلى هذا المستودع العام.
+# بناء إصدار Android موقَّع: عند وسم v* أو يدوياً.
+# خطوط ثمانية تُجلب من المستودع الخاص zen-fonts عبر FONTS_REPO_TOKEN.
+# التوقيع: يستخدم أسرار التوقيع إن وُجدت، وإلا يولّد مفتاحاً مؤقتاً لهذا البناء.
 name: إصدار Android
 
 on:
@@ -22,8 +18,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    # المستودع العام: أسرار التوقيع وPlay في البيئة `production` بموافقة إلزامية من المالك وفروع/وسوم مقيّدة
-    # (docs/PUBLIC_REPO.md). قبل نقل الأسرار إليها تبقى أسرار المستودع تعمل كما هي.
     environment: production
     timeout-minutes: 45
     steps:
@@ -76,7 +70,7 @@ jobs:
             exit 1
           fi
 
-      - name: مفتاح التوقيع وgoogle-services.json
+      - name: تجهيز مفتاح التوقيع وgoogle-services.json
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -84,18 +78,35 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ]; then
-            echo "::error::أسرار التوقيع غير مضبوطة (ANDROID_KEYSTORE_BASE64 وANDROID_KEYSTORE_PASSWORD وANDROID_KEY_ALIAS)."
-            exit 1
-          fi
           umask 077
-          echo "$KEYSTORE_BASE64" | base64 -d > android/zen-release.jks
-          {
-            echo "storeFile=zen-release.jks"
-            echo "storePassword=$KEYSTORE_PASSWORD"
-            echo "keyAlias=$KEY_ALIAS"
-            echo "keyPassword=${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
-          } > android/keystore.properties
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > android/zen-release.jks
+            {
+              echo "storeFile=zen-release.jks"
+              echo "storePassword=$KEYSTORE_PASSWORD"
+              echo "keyAlias=$KEY_ALIAS"
+              echo "keyPassword=${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+            } > android/keystore.properties
+          else
+            echo "::warning::لا توجد أسرار توقيع؛ سيولّد مفتاح توقيع مؤقت لهذا البناء."
+            echo "::warning::تحديث APK مستقبلي فوق هذه النسخة سيتطلب استخدام المفتاح نفسه."
+            KEYSTORE_PASSWORD=$(openssl rand -hex 24)
+            KEY_ALIAS=zen-temp
+            keytool -genkeypair -v \
+              -keystore android/zen-release.jks \
+              -storetype PKCS12 \
+              -storepass "$KEYSTORE_PASSWORD" \
+              -keypass "$KEYSTORE_PASSWORD" \
+              -alias "$KEY_ALIAS" \
+              -keyalg RSA -keysize 4096 -validity 10000 \
+              -dname "CN=Zen, O=Zen, L=Riyadh, S=Riyadh, C=SA"
+            {
+              echo "storeFile=zen-release.jks"
+              echo "storePassword=$KEYSTORE_PASSWORD"
+              echo "keyAlias=$KEY_ALIAS"
+              echo "keyPassword=$KEYSTORE_PASSWORD"
+            } > android/keystore.properties
+          fi
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
           else
@@ -104,8 +115,6 @@ jobs:
 
       - name: بناء نسخة الويب المضمَّنة
         env:
-          # رابط QR الشهائد العام (1.23.0): vars.PUBLIC_VERIFY_URL، أو صفحة verify/ في الموقع العام إن ضُبط
-          # LEGAL_SITE_REPO. بلا أيّهما يبقى الرابط zen://verify (يفتح التطبيق وحده).
           PUBLIC_VERIFY_URL: ${{ vars.PUBLIC_VERIFY_URL }}
           LEGAL_SITE_REPO: ${{ vars.LEGAL_SITE_REPO }}
         run: |
@@ -140,7 +149,6 @@ jobs:
           path: out/
           retention-days: 30
 
-      # احتياط حصة المرفقات: APK وAAB في إصدار مسودة خاص بالمستودع (لا يُنشر ولا يظهر لغير المتعاونين).
       - name: حفظ الحزم في إصدار مسودة (احتياط الحصة)
         if: steps.artifact.outcome == 'failure' && github.ref_type != 'tag'
         env:
@@ -175,5 +183,4 @@ jobs:
           packageName: app.zen.quran
           releaseFiles: out/*.aab
           track: internal
-          # draft حتى يكتمل إعداد التطبيق في Play Console؛ ثم PLAY_RELEASE_STATUS=completed.
           status: ${{ vars.PLAY_RELEASE_STATUS || 'draft' }}
