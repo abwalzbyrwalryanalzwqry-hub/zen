@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: جلب خطوط ثمانية من المستودع الخاص
+      - name: جلب خطوط ثمانية الخفيفة من المستودع الخاص
         env:
           FONTS_TOKEN: ${{ secrets.FONTS_REPO_TOKEN }}
         run: |
@@ -36,9 +36,16 @@ jobs:
             "https://x-access-token:${FONTS_TOKEN}@github.com/abwalzbyrwalryanalzwqry-hub/zen-fonts.git" \
             /tmp/zen-fonts
           mkdir -p public/fonts/thmanyah
-          cp /tmp/zen-fonts/*.woff2 public/fonts/thmanyah/
+          cp \
+            /tmp/zen-fonts/thmanyahsans-Regular.woff2 \
+            /tmp/zen-fonts/thmanyahsans-Medium.woff2 \
+            /tmp/zen-fonts/thmanyahsans-Bold.woff2 \
+            /tmp/zen-fonts/thmanyahserifdisplay-Bold.woff2 \
+            /tmp/zen-fonts/thmanyahseriftext-Regular.woff2 \
+            public/fonts/thmanyah/
           rm -rf /tmp/zen-fonts
-          ls -1 public/fonts/thmanyah
+          echo "خطوط ثمانية المضمّنة:"
+          ls -lh public/fonts/thmanyah
 
       - uses: actions/setup-node@v7
         with:
@@ -90,7 +97,6 @@ jobs:
             } > android/keystore.properties
           else
             echo "::warning::لا توجد أسرار توقيع؛ سيولّد مفتاح توقيع مؤقت لهذا البناء."
-            echo "::warning::تحديث APK مستقبلي فوق هذه النسخة سيتطلب استخدام المفتاح نفسه."
             KEYSTORE_PASSWORD=$(openssl rand -hex 24)
             KEY_ALIAS=zen-temp
             keytool -genkeypair -v \
@@ -110,8 +116,6 @@ jobs:
           fi
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-          else
-            echo "::warning::لا GOOGLE_SERVICES_JSON: يُبنى التطبيق بلا إشعارات FCM."
           fi
 
       - name: بناء نسخة الويب المضمَّنة
@@ -150,7 +154,6 @@ jobs:
           path: out/
           retention-days: 30
 
-      # حفظ APK وAAB دائماً في إصدار مسودة خاص بالمستودع، بمعزل عن حصة مرفقات Actions.
       - name: حفظ الحزم في إصدار مسودة
         if: success()
         env:
@@ -164,7 +167,7 @@ jobs:
             out/SHA256SUMS \
             --draft --target "$GITHUB_SHA" \
             --title "زِن $VERSION_NAME (versionCode $VERSION_CODE) — تشغيل $GITHUB_RUN_NUMBER" \
-            --notes "بناء يدوي يتضمن خطوط ثمانية. حمّل ملف .apk للتثبيت المباشر."
+            --notes "بناء يدوي يتضمن خطوط ثمانية الخفيفة. حمّل ملف .apk للتثبيت المباشر."
           echo "الحزم في الإصدار المسودة \`$TAG\`." >> "$GITHUB_STEP_SUMMARY"
 
       - name: مرفقات الإصدار في GitHub
@@ -175,19 +178,3 @@ jobs:
           NOTES=$(awk '/^## /{n++} n==1' CHANGELOG.md | tail -n +2)
           gh release create "$GITHUB_REF_NAME" out/* --title "زِن $VERSION_NAME" --notes "$NOTES" --verify-tag \
             || gh release upload "$GITHUB_REF_NAME" out/* --clobber
-
-      - name: التحقق من حساب Google Play
-        id: play
-        env:
-          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-        run: echo "ready=$([ -n "$PLAY_JSON" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-
-      - name: الرفع إلى المسار الداخلي في Google Play
-        if: steps.play.outputs.ready == 'true'
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: app.zen.quran
-          releaseFiles: out/*.aab
-          track: internal
-          status: ${{ vars.PLAY_RELEASE_STATUS || 'draft' }}
