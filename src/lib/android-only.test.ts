@@ -67,7 +67,7 @@ describe("Android فقط، بلا ويب", () => {
 
     const root = read("src/routes/__root.tsx");
     expect(root).toContain("function FontsGate");
-    expect(root).toContain("setReady(!areThmanyahFontsSupported())");
+    expect(root).toMatch(/useState\(!areThmanyahFontsSupported\(\)\)/);
     expect(root).toContain("void loadThmanyahFonts().finally");
     expect(root).toContain("<FontsGate>");
   });

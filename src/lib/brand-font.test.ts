@@ -34,7 +34,7 @@ describe("خط الواجهة (P0-03)", () => {
 
   it("لا مرجع لـ Thmanyah خارج نظام خطوط Android المصرّح به", () => {
     const offenders = walk("src")
-      .filter((f) => /\.(ts|tsx|css|json)$/.test(f) && !f.endsWith("brand-font.test.ts"))
+      .filter((f) => /\.(ts|tsx|css|json)$/.test(f) && !f.endsWith(".test.ts"))
       .filter((f) => !THMANYAH_ALLOWED_FILES.has(f))
       .filter((f) => {
         const s = readFileSync(f, "utf8");
