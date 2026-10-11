@@ -20,11 +20,52 @@
   font-display: swap;
 }
 
+/* خطوط ثمانية: لا تُختار إلا داخل Android بعد نجاح المحمّل في thmanyah-fonts.ts. */
+@font-face {
+  font-family: "Thmanyah Sans";
+  src: url("/fonts/thmanyah/thmanyahsans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Thmanyah Sans";
+  src: url("/fonts/thmanyah/thmanyahsans-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Thmanyah Sans";
+  src: url("/fonts/thmanyah/thmanyahsans-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Thmanyah Serif Display";
+  src: url("/fonts/thmanyah/thmanyahserifdisplay-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Thmanyah Serif Text";
+  src: url("/fonts/thmanyah/thmanyahseriftext-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
+/* Tailwind يقرأ هذه المتغيرات وقت التشغيل، لا أسماء خطوط محصورة وقت البناء. */
+@theme {
+  --font-sans: var(--zen-font-sans);
+  --font-display: var(--zen-font-display);
+}
+
 @theme inline {
-  --font-sans: "Zen Text", system-ui, sans-serif;
-  --font-display: "Zen Text", serif;
   /* خطوط نص القرآن في قسم المصحف (القراءة بالسورة والتفسير والمشاركة). */
   --font-quran: "Amiri Quran", "Scheherazade New", "Traditional Arabic", "KFGQPC Hafs", serif;
 
@@ -71,6 +112,9 @@
 }
 
 :root {
+  --zen-font-sans: "Zen Text", system-ui, sans-serif;
+  --zen-font-display: "Zen Text", serif;
+  --zen-font-reading: "Zen Text", serif;
   --radius: 1rem;
 
   /* Light — soft warm off-white */
@@ -176,7 +220,7 @@
   }
   html,
   body {
-    font-family: var(--font-sans);
+    font-family: var(--zen-font-sans);
     -webkit-font-smoothing: antialiased;
   }
   body {
