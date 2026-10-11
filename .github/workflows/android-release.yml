@@ -120,9 +120,15 @@ jobs:
 
       - name: بناء نسخة الويب المضمَّنة
         env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           PUBLIC_VERIFY_URL: ${{ vars.PUBLIC_VERIFY_URL }}
           LEGAL_SITE_REPO: ${{ vars.LEGAL_SITE_REPO }}
         run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::أضف VITE_SUPABASE_URL وVITE_SUPABASE_PUBLISHABLE_KEY إلى GitHub Secrets قبل إنشاء APK."
+            exit 1
+          fi
           if [ -z "$PUBLIC_VERIFY_URL" ] && [ -n "$LEGAL_SITE_REPO" ]; then
             PUBLIC_VERIFY_URL="https://${LEGAL_SITE_REPO%%/*}.github.io/${LEGAL_SITE_REPO#*/}/verify/"
           fi
@@ -167,7 +173,7 @@ jobs:
             out/SHA256SUMS \
             --draft --target "$GITHUB_SHA" \
             --title "زِن $VERSION_NAME (versionCode $VERSION_CODE) — تشغيل $GITHUB_RUN_NUMBER" \
-            --notes "بناء يدوي يتضمن خطوط ثمانية الخفيفة. حمّل ملف .apk للتثبيت المباشر."
+            --notes "بناء يدوي يتضمن خطوط ثمانية الخفيفة وإعداد Supabase. حمّل ملف .apk للتثبيت المباشر."
           echo "الحزم في الإصدار المسودة \`$TAG\`." >> "$GITHUB_STEP_SUMMARY"
 
       - name: مرفقات الإصدار في GitHub
