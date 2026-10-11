@@ -64,15 +64,15 @@ export async function loadThmanyahFonts(): Promise<boolean> {
 
   const root = document.documentElement;
   root.style.setProperty(
-    "--font-sans",
+    "--zen-font-sans",
     `"${THMANYAH_FONT_FAMILIES.primary}", "Zen Text", system-ui, sans-serif`,
   );
   root.style.setProperty(
-    "--font-display",
+    "--zen-font-display",
     `"${THMANYAH_FONT_FAMILIES.display}", "${THMANYAH_FONT_FAMILIES.primary}", serif`,
   );
   root.style.setProperty(
-    "--font-reading",
+    "--zen-font-reading",
     `"${THMANYAH_FONT_FAMILIES.reading}", "${THMANYAH_FONT_FAMILIES.primary}", serif`,
   );
 
