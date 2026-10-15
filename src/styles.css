@@ -288,6 +288,12 @@
   * {
     border-color: var(--color-border);
   }
+  /* العناوين بخط ثمانية Serif Display داخل Android (كما في ترتيل)، وبخط Zen Text في الويب. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--zen-font-display);
+  }
   html,
   body {
     font-family: var(--zen-font-sans);
