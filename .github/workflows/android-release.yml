@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: جلب خطوط ثمانية الخفيفة من المستودع الخاص
+      - name: جلب خطوط ثمانية (3 عائلات × 5 أوزان) من المستودع الخاص
         env:
           FONTS_TOKEN: ${{ secrets.FONTS_REPO_TOKEN }}
         run: |
@@ -36,13 +36,12 @@ jobs:
             "https://x-access-token:${FONTS_TOKEN}@github.com/abwalzbyrwalryanalzwqry-hub/zen-fonts.git" \
             /tmp/zen-fonts
           mkdir -p public/fonts/thmanyah
-          cp \
-            /tmp/zen-fonts/thmanyahsans-Regular.woff2 \
-            /tmp/zen-fonts/thmanyahsans-Medium.woff2 \
-            /tmp/zen-fonts/thmanyahsans-Bold.woff2 \
-            /tmp/zen-fonts/thmanyahserifdisplay-Bold.woff2 \
-            /tmp/zen-fonts/thmanyahseriftext-Regular.woff2 \
-            public/fonts/thmanyah/
+          cp /tmp/zen-fonts/thmanyah*.woff2 public/fonts/thmanyah/
+          COUNT=$(ls public/fonts/thmanyah/*.woff2 | wc -l)
+          if [ "$COUNT" -ne 15 ]; then
+            echo "::error::المتوقع 15 ملف خط من ثمانية، وُجد $COUNT."
+            exit 1
+          fi
           rm -rf /tmp/zen-fonts
           echo "خطوط ثمانية المضمّنة:"
           ls -lh public/fonts/thmanyah
@@ -173,7 +172,7 @@ jobs:
             out/SHA256SUMS \
             --draft --target "$GITHUB_SHA" \
             --title "زِن $VERSION_NAME (versionCode $VERSION_CODE) — تشغيل $GITHUB_RUN_NUMBER" \
-            --notes "بناء يدوي يتضمن خطوط ثمانية الخفيفة وإعداد Supabase. حمّل ملف .apk للتثبيت المباشر."
+            --notes "بناء يدوي يتضمن خطوط ثمانية كاملة الأوزان وإعداد Supabase. حمّل ملف .apk للتثبيت المباشر."
           echo "الحزم في الإصدار المسودة \`$TAG\`." >> "$GITHUB_STEP_SUMMARY"
 
       - name: مرفقات الإصدار في GitHub
