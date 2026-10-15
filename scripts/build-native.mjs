@@ -4,7 +4,7 @@
  *   1. واجهة SPA كاملة في dist-native/client (بلا خادم، ZEN_NATIVE=1).
  *   2. المصحف كاملاً داخل الحزمة تلقائياً: صفحات مصحف المدينة الـ604 ملفات نصية صغيرة في
  *      public/data/quran/mushaf15 (نحو 2.4 ميغابايت) مع خط مجمع الملك فهد في public/fonts.
- *   3. خطوط ثمانية الخمسة تُنسخ صراحة إلى ناتج WebView النهائي عند توفرها؛ غيابها لا يوقف البناء.
+ *   3. خطوط ثمانية (15 ملفاً: 3 عائلات × 5 أوزان) تُنسخ صراحة إلى ناتج WebView النهائي عند توفرها؛ غيابها لا يوقف البناء.
  *   4. `cap sync android` لنسخها إلى مشروع أندرويد.
  *
  * الاستخدام:  npm run build:apk-web   ثم   cd android && ./gradlew assembleRelease
@@ -18,11 +18,21 @@ const ROOT = new URL("..", import.meta.url).pathname;
 const OUT = join(ROOT, "dist-native/client");
 const PAGES = 604;
 const THMANYAH_FONT_FILES = [
+  "thmanyahsans-Light.woff2",
   "thmanyahsans-Regular.woff2",
   "thmanyahsans-Medium.woff2",
   "thmanyahsans-Bold.woff2",
+  "thmanyahsans-Black.woff2",
+  "thmanyahserifdisplay-Light.woff2",
+  "thmanyahserifdisplay-Regular.woff2",
+  "thmanyahserifdisplay-Medium.woff2",
   "thmanyahserifdisplay-Bold.woff2",
+  "thmanyahserifdisplay-Black.woff2",
+  "thmanyahseriftext-Light.woff2",
   "thmanyahseriftext-Regular.woff2",
+  "thmanyahseriftext-Medium.woff2",
+  "thmanyahseriftext-Bold.woff2",
+  "thmanyahseriftext-Black.woff2",
 ];
 
 const run = (cmd, env = {}) =>
