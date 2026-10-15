@@ -82,19 +82,16 @@ export async function loadThmanyahFonts(): Promise<boolean> {
   // لا نُعلن عائلات ثمانية كخطوط أساسية إلا بعد تحميل ملف واحد منها بنجاح.
   if (loadedFamilies.size === 0) return false;
 
+  // نفس نظام ترتيل: «ثمانية Serif Text» للنصوص والواجهة، و«Serif Display» للعناوين،
+  // و«ثمانية Sans» احتياطًا فقط. كان زِن يستخدم Sans أساسًا فبدت الواجهة بخط عصري لا بخط ثمانية المعروف.
   const root = document.documentElement;
-  root.style.setProperty(
-    "--zen-font-sans",
-    `"${THMANYAH_FONT_FAMILIES.primary}", "Zen Text", system-ui, sans-serif`,
-  );
-  root.style.setProperty(
-    "--zen-font-display",
-    `"${THMANYAH_FONT_FAMILIES.display}", "${THMANYAH_FONT_FAMILIES.primary}", serif`,
-  );
-  root.style.setProperty(
-    "--zen-font-reading",
-    `"${THMANYAH_FONT_FAMILIES.reading}", "${THMANYAH_FONT_FAMILIES.primary}", serif`,
-  );
+  const text = THMANYAH_FONT_FAMILIES.reading;
+  const display = THMANYAH_FONT_FAMILIES.display;
+  const sans = THMANYAH_FONT_FAMILIES.primary;
+  root.style.setProperty("--zen-font-sans", `"${text}", "${sans}", "Zen Text", system-ui, serif`);
+  root.style.setProperty("--zen-font-display", `"${display}", "${text}", "Zen Text", serif`);
+  root.style.setProperty("--zen-font-reading", `"${text}", "${sans}", "Zen Text", serif`);
+  root.dataset.thmanyah = "on";
 
   return true;
 }
