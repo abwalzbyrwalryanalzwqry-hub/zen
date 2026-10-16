@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useLatest } from "@/hooks/use-latest";
-import { Bell, BellOff } from "lucide-react";
+import { Bell, BellOff, ChevronLeft } from "lucide-react";
+import { isNativeApp } from "@/lib/native";
 import {
   fireReminder,
   isDue,
@@ -12,8 +14,41 @@ import {
   type ReminderSettings,
 } from "@/lib/reminders";
 
-/** Glass card: daily reminder to log memorization. Runs a lightweight local scheduler. */
+/**
+ * تطبيق Android: WebView بلا `window.Notification`، فالمؤقت المحلي لا يُظهر شيئاً وكانت البطاقة تقول
+ * «متصفحك لا يدعم الإشعارات». تذكير الورد هناك يصل عبر FCM من الخادم (`wird_time` في
+ * notification_prefs ← enqueue_daily_reminders)، فالبطاقة تفتح إعداد التنبيهات بدل المؤقت المحلي.
+ */
 export function DailyReminder({ loggedToday }: { loggedToday: boolean }) {
+  if (isNativeApp()) return <NativeDailyReminder loggedToday={loggedToday} />;
+  return <LocalDailyReminder loggedToday={loggedToday} />;
+}
+
+function NativeDailyReminder({ loggedToday }: { loggedToday: boolean }) {
+  return (
+    <Link
+      to="/settings/notifications"
+      className="mx-5 mt-3 glass rounded-3xl p-4 flex items-center gap-3"
+      aria-label="ضبط تذكير الورد اليومي"
+    >
+      <div className="w-9 h-9 rounded-2xl bg-gold/15 flex items-center justify-center">
+        <Bell className="w-4 h-4 text-gold" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground">تذكير يومي بالحفظ</p>
+        <p className="text-[0.625rem] text-muted-foreground">
+          {loggedToday
+            ? "تم تسجيل ورد اليوم ✓ · اضبط وقت التذكير من التنبيهات"
+            : "اضبط وقت «تذكير الورد» من الإعدادات ← التنبيهات"}
+        </p>
+      </div>
+      <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+    </Link>
+  );
+}
+
+/** Glass card: daily reminder to log memorization. Runs a lightweight local scheduler. */
+function LocalDailyReminder({ loggedToday }: { loggedToday: boolean }) {
   // الإعداد محلي ومتزامن، فيُقرأ عند أول عرض بدل أثر يضبطه بعده.
   const [s, setS] = useState<ReminderSettings>(loadReminder);
   const [msg, setMsg] = useState<string | null>(null);
