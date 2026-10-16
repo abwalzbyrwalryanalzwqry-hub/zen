@@ -4,12 +4,13 @@ import { Chip, Sheet, Switch } from "./parts";
 import { notificationState, requestNotificationPermission } from "@/lib/system-notify";
 import { muhasabaCoach } from "@/lib/tools-client";
 import { isNativeApp } from "@/lib/native";
+import { t } from "@/lib/i18n";
 import { HABIT_PRESETS, type MuhasabaSettings } from "@/lib/muhasaba/types";
 import { TextAiConsentStatus } from "@/components/zen/ai/TextAiConsentDialog";
 
 // تطبيق Android: WebView بلا `window.Notification`، وتذكير المحاسبة يصل عبر FCM من الخادم
 // (`muhasaba_time` في الإعدادات ← التنبيهات)، فنرشد المستخدم إليه بدل «متصفحك لا يدعم».
-const NATIVE_REMINDER_HINT = "على تطبيق زِن يُضبط «تذكير المحاسبة» من الإعدادات ← التنبيهات.";
+const nativeReminderHint = () => t("nativeReminders.muhasabaHint");
 
 // ─────────────────────── البدء لأول مرة ───────────────────────
 
@@ -61,7 +62,7 @@ export function Onboarding({ onDone }: { onDone: (r: OnboardingResult) => void }
       setNotice(
         perm === "unsupported"
           ? isNativeApp()
-            ? NATIVE_REMINDER_HINT
+            ? nativeReminderHint()
             : "متصفحك لا يدعم التنبيهات؛ يمكنك فتح «محاسبتي» من الصفحة الرئيسية متى شئت."
           : "التنبيهات غير مسموحة. يمكنك تفعيلها لاحقاً من إعدادات المتصفح.",
       );
@@ -223,7 +224,7 @@ export function SettingsSheet({
       setNotice(
         p === "unsupported"
           ? isNativeApp()
-            ? NATIVE_REMINDER_HINT
+            ? nativeReminderHint()
             : "متصفحك لا يدعم التنبيهات."
           : "التنبيهات غير مسموحة لهذا الموقع. فعّلها من إعدادات المتصفح ثم عد إلى هنا.",
       );

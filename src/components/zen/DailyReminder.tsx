@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useLatest } from "@/hooks/use-latest";
 import { Bell, BellOff, ChevronLeft } from "lucide-react";
 import { isNativeApp } from "@/lib/native";
+import { t } from "@/lib/i18n";
 import {
   fireReminder,
   isDue,
@@ -29,17 +30,15 @@ function NativeDailyReminder({ loggedToday }: { loggedToday: boolean }) {
     <Link
       to="/settings/notifications"
       className="mx-5 mt-3 glass rounded-3xl p-4 flex items-center gap-3"
-      aria-label="ضبط تذكير الورد اليومي"
+      aria-label={t("nativeReminders.wirdAria")}
     >
       <div className="w-9 h-9 rounded-2xl bg-gold/15 flex items-center justify-center">
         <Bell className="w-4 h-4 text-gold" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground">تذكير يومي بالحفظ</p>
+        <p className="text-sm font-medium text-foreground">{t("nativeReminders.wirdTitle")}</p>
         <p className="text-[0.625rem] text-muted-foreground">
-          {loggedToday
-            ? "تم تسجيل ورد اليوم ✓ · اضبط وقت التذكير من التنبيهات"
-            : "اضبط وقت «تذكير الورد» من الإعدادات ← التنبيهات"}
+          {loggedToday ? t("nativeReminders.wirdLogged") : t("nativeReminders.wirdHint")}
         </p>
       </div>
       <ChevronLeft className="w-4 h-4 text-muted-foreground" />
