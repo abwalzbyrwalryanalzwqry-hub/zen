@@ -113,9 +113,22 @@ jobs:
               echo "keyPassword=$KEYSTORE_PASSWORD"
             } > android/keystore.properties
           fi
-          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
-            echo "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          # بلا google-services.json لا تُطبَّق إضافة Google Services فيخرج APK لا يسجّل في FCM ولا يصله
+          # أي إشعار (حادثة 1.37: السرّ غائب والبناء «ناجح»). نوقف البناء بدل إصدار نسخة بلا إشعارات.
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::error::أضف السرّ GOOGLE_SERVICES_JSON (محتوى google-services.json من Firebase، نصاً أو base64)؛ بدونه لا تعمل الإشعارات."
+            exit 1
           fi
+          if printf '%s' "$GOOGLE_SERVICES_JSON" | jq -e . >/dev/null 2>&1; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          else
+            printf '%s' "$GOOGLE_SERVICES_JSON" | base64 -d > android/app/google-services.json
+          fi
+          jq -e '[.client[].client_info.android_client_info.package_name] | index("app.zen.quran") != null' \
+            android/app/google-services.json >/dev/null || {
+            echo "::error::google-services.json لا يحوي تطبيق app.zen.quran."
+            exit 1
+          }
 
       - name: بناء نسخة الويب المضمَّنة
         env:
