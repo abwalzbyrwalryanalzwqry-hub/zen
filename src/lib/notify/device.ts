@@ -51,9 +51,18 @@ export function pushPlatform(): "android" | "ios" | null {
   }
 }
 
-async function plugin() {
-  const { PushNotifications } = await import("@capacitor/push-notifications");
-  return PushNotifications;
+/**
+ * الإضافة نفسها لا تُعاد من دالة async أبداً: كائن إضافة Capacitor «Proxy» يجيب عن أي خاصية بدالة،
+ * ومنها `then`، فيعامله JavaScript كوعد وينتظر `then` التي ترفض داخلياً («then() is not implemented on
+ * android») ولا تستدعي resolve. كان إرجاع PushNotifications من دالة async يعلّق كل انتظار له إلى الأبد
+ * على الجوال: لا قناة ولا إذن ولا رمز FCM يُحفظ، فلا يصل أي إشعار. تُعاد الوحدة (ليست thenable)
+ * وتؤخذ الإضافة منها متزامنة.
+ */
+type PushPlugin = typeof import("@capacitor/push-notifications").PushNotifications;
+
+let pushMod: Promise<typeof import("@capacitor/push-notifications")> | null = null;
+function pushModule() {
+  return (pushMod ??= import("@capacitor/push-notifications"));
 }
 
 export const savedToken = () => ls.get(NATIVE_TOKEN_KEY);
@@ -61,7 +70,7 @@ export const optedOut = () => ls.get(OPT_OUT_KEY) === "1";
 
 export async function pushPermission(): Promise<PushPermission> {
   if (!pushPlatform()) return "denied";
-  const p = (await (await plugin()).checkPermissions()).receive;
+  const p = (await (await pushModule()).PushNotifications.checkPermissions()).receive;
   return p === "granted" ? "granted" : p === "denied" ? "denied" : "prompt";
 }
 
@@ -69,25 +78,23 @@ export async function pushPermission(): Promise<PushPermission> {
 export async function ensureChannel(): Promise<void> {
   if (pushPlatform() !== "android") return;
   await (
-    await plugin()
-  )
-    .createChannel({
-      id: ANDROID_CHANNEL,
-      name: "تنبيهات زِن",
-      description: "الواجبات والتقييم والحضور والرسائل والتذكيرات",
-      importance: 4,
-      visibility: 1,
-      vibration: true,
-      lights: true,
-    })
-    .catch(() => undefined);
+    await pushModule()
+  ).PushNotifications.createChannel({
+    id: ANDROID_CHANNEL,
+    name: "تنبيهات زِن",
+    description: "الواجبات والتقييم والحضور والرسائل والتذكيرات",
+    importance: 4,
+    visibility: 1,
+    vibration: true,
+    lights: true,
+  }).catch(() => undefined);
 }
 
 /** قناة أطفأها المستخدم من إعدادات الجوال (أهمية 0). */
 export async function channelBlocked(): Promise<boolean> {
   if (pushPlatform() !== "android") return false;
   try {
-    const { channels } = await (await plugin()).listChannels();
+    const { channels } = await (await pushModule()).PushNotifications.listChannels();
     const c = channels.find((x) => x.id === ANDROID_CHANNEL);
     return !!c && c.importance === 0;
   } catch {
@@ -98,6 +105,12 @@ export async function channelBlocked(): Promise<boolean> {
 /* ─────────── الرمز ─────────── */
 
 let currentUser: string | null = null;
+/**
+ * يُعاد حفظ الرمز مرة في كل تشغيل حتى لو طابق المحفوظ محلياً: الخادم يحذف الرمز حين يرد FCM بأنه
+ * غير مسجّل، أو قد يُفقد صفّه لأي سبب، وكانت المقارنة المحلية وحدها تُبقي الجهاز صامتاً للأبد بينما
+ * تعرض الإعدادات «مفعّل». الحفظ متكرّر الأمان على الخادم (لا يمسح «آخر وصول» ولا الخصوصية).
+ */
+let syncedThisLaunch = false;
 let listening: Promise<void> | null = null;
 let waiting: { resolve: (t: string) => void; reject: (e: Error) => void } | null = null;
 
@@ -108,15 +121,22 @@ async function saveToken(token: string): Promise<boolean> {
   if (error) return false;
   ls.set(NATIVE_TOKEN_KEY, token);
   ls.set(TOKEN_USER_KEY, currentUser);
+  syncedThisLaunch = true;
   // قفل التطبيق 1.29.0 (M6): الرمز الجديد يبدأ عاماً على الخادم؛ يُرسل خيار «إخفاء نص الإشعارات» له.
-  void import("@/lib/app-lock-push").then((m) => m.syncLockPushPrivacy()).catch(() => undefined);
+  // العلامة المحلية تُنسى أولاً: قد يكون الصف أُعيد إنشاؤه على الخادم فعاد عاماً.
+  void import("@/lib/app-lock-push")
+    .then((m) => {
+      m.forgetLockPushSync();
+      return m.syncLockPushPrivacy();
+    })
+    .catch(() => undefined);
   return true;
 }
 
 /** مستمعان دائمان مرة واحدة: كل رمز (أول مرة أو بعد تجديده من FCM) يُحفظ. */
 function listen(): Promise<void> {
   return (listening ??= (async () => {
-    const Push = await plugin();
+    const { PushNotifications: Push } = await pushModule();
     await Push.addListener("registration", (t) => {
       const w = waiting;
       waiting = null;
@@ -131,7 +151,7 @@ function listen(): Promise<void> {
   })());
 }
 
-function requestToken(Push: Awaited<ReturnType<typeof plugin>>): Promise<string> {
+function requestToken(Push: PushPlugin): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("timeout")), 20_000);
     waiting = {
@@ -150,18 +170,32 @@ function requestToken(Push: Awaited<ReturnType<typeof plugin>>): Promise<string>
 
 export type RegisterResult = "on" | "denied" | "offline" | "failed" | "unsupported";
 
+let registering: Promise<RegisterResult> = Promise.resolve("unsupported");
+
 /**
- * يسجّل الجهاز ويحفظ رمزه للمستخدم. `prompt`: يُعرض طلب الإذن إن لم يُحسم بعد.
- * يعيد الحالة بدل الرمي، فالمستدعي يعرض الرسالة المناسبة.
+ * يسجّل الجهاز ويحفظ رمزه للمستخدم. `prompt`: يُعرض طلب الإذن إن لم يُحسم بعد. `force`: يُعاد الحفظ
+ * على الخادم ولو سبق في هذا التشغيل. يعيد الحالة بدل الرمي، فالمستدعي يعرض الرسالة المناسبة.
  */
-export async function registerDevice(
+
+export function registerDevice(
   user: string,
-  { prompt }: { prompt: boolean },
+  opts: { prompt: boolean; force?: boolean },
+): Promise<RegisterResult> {
+  // تسلسل: طلبان متزامنان (تشغيل التطبيق + مفتاح الإعدادات) كانا يتشاركان «waiting» فيضيع ردّ أحدهما
+  // وينتهي بمهلة 20 ثانية و«تعذّر التفعيل».
+  const next = registering.catch(() => undefined).then(() => registerOnce(user, opts));
+  registering = next.catch(() => "failed" as const);
+  return next;
+}
+
+async function registerOnce(
+  user: string,
+  { prompt, force = false }: { prompt: boolean; force?: boolean },
 ): Promise<RegisterResult> {
   const platform = pushPlatform();
   if (!platform) return "unsupported";
   currentUser = user;
-  const Push = await plugin();
+  const { PushNotifications: Push } = await pushModule();
   let perm = await pushPermission();
   if (perm === "prompt" && prompt) {
     ls.set(ASKED_KEY, "1");
@@ -178,7 +212,8 @@ export async function registerDevice(
   } catch {
     return isOnline() ? "failed" : "offline";
   }
-  if (token === savedToken() && ls.get(TOKEN_USER_KEY) === user) return "on";
+  if (token === savedToken() && ls.get(TOKEN_USER_KEY) === user && syncedThisLaunch && !force)
+    return "on";
   return (await saveToken(token)) ? "on" : isOnline() ? "failed" : "offline";
 }
 
@@ -215,7 +250,9 @@ export async function unregisterDevice({ remember }: { remember: boolean }): Pro
   ls.set(NATIVE_TOKEN_KEY, null);
   ls.set(TOKEN_USER_KEY, null);
   currentUser = null;
-  if (pushPlatform()) await (await plugin()).unregister().catch(() => undefined);
+  syncedThisLaunch = false;
+  if (pushPlatform())
+    await (await pushModule()).PushNotifications.unregister().catch(() => undefined);
 }
 
 /** حالة الجهاز للإعدادات. */
@@ -225,4 +262,23 @@ export async function deviceState(): Promise<DeviceState> {
   if (perm === "denied") return "denied";
   if (await channelBlocked()) return "blocked";
   return savedToken() && !optedOut() && perm === "granted" ? "on" : "off";
+}
+
+/**
+ * إعادة تسجيل صريحة بلا طلب إذن: تُستعمل حين يقول الخادم إن الجهاز غير مسجّل (NO_DEVICE) بينما
+ * يراه التطبيق مفعّلاً، فيُصلح نفسه بدل أن يطلب من المستخدم إطفاء المفتاح وتشغيله.
+ */
+export async function resyncDevice(user: string): Promise<RegisterResult> {
+  if (!pushPlatform() || optedOut()) return "unsupported";
+  return registerDevice(user, { prompt: false, force: true });
+}
+
+/** يمسح إشعارات زِن المعروضة في شريط الجوال (بعد قراءتها داخل التطبيق). */
+export async function clearDeliveredNotifications(): Promise<void> {
+  if (!pushPlatform()) return;
+  try {
+    await (await pushModule()).PushNotifications.removeAllDeliveredNotifications();
+  } catch {
+    // لا شيء
+  }
 }

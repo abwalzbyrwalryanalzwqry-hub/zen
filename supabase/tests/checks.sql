@@ -2343,6 +2343,9 @@ SELECT code FROM public._t WHERE code LIKE 'push %';
 -- @@ 72. من الإشعار إلى صندوق الإرسال: الفئة المعطّلة لا تُرسَل، وساعات الهدوء تؤجّل
 DELETE FROM public._t;
 DELETE FROM public.push_outbox;
+-- الجهاز = رمز FCM (منذ 20261225100000 لا يُعدّ اشتراك الويب القديم جهازاً؛ يُحذف في 73 كرمز زائل).
+INSERT INTO public.native_push_tokens (user_id, token, platform)
+VALUES ('11111111-1111-1111-1111-111111111111', 'salem_tok:APA91b' || repeat('s', 40), 'android');
 INSERT INTO public.notifications (user_id, kind, title, body, link)
 VALUES ('11111111-1111-1111-1111-111111111111', 'assignment', 'واجب جديد', 'سورة الملك', '/today');
 INSERT INTO public._t SELECT 'queue subscribed: '
@@ -2407,14 +2410,14 @@ INSERT INTO public._t SELECT 'send grants: '
 SET ROLE service_role;
 CREATE TEMP TABLE _claim AS SELECT * FROM public.claim_push_batch(10);
 CREATE TEMP TABLE _claim2 AS SELECT * FROM public.claim_push_batch(10);
-SELECT public.finish_push(id, '{}', ARRAY['https://push.example.com/salem']) FROM _claim;
+SELECT public.finish_push(id, '{}', ARRAY['salem_tok:APA91b' || repeat('s', 40)]) FROM _claim;
 RESET ROLE;
 INSERT INTO public._t SELECT 'send claim: '
   || CASE WHEN count(*) = 1 AND jsonb_array_length(min(subscriptions::text)::jsonb) = 1 THEN 'ok' ELSE 'FAILED' END FROM _claim;
 INSERT INTO public._t SELECT 'send claim again: '
   || CASE WHEN count(*) = 0 THEN 'none' ELSE 'FAILED' END FROM _claim2;
 INSERT INTO public._t SELECT 'send gone removed: '
-  || CASE WHEN NOT EXISTS (SELECT 1 FROM public.push_subscriptions WHERE endpoint = 'https://push.example.com/salem')
+  || CASE WHEN NOT EXISTS (SELECT 1 FROM public.native_push_tokens WHERE token = 'salem_tok:APA91b' || repeat('s', 40))
            AND EXISTS (SELECT 1 FROM public.push_outbox o JOIN _claim c ON c.id = o.id WHERE o.sent_at IS NOT NULL)
       THEN 'ok' ELSE 'FAILED' END;
 DROP TABLE _claim, _claim2;
@@ -8468,3 +8471,76 @@ DELETE FROM public.feature_flags WHERE key = 'assistant';
 INSERT INTO public._t SELECT 'sf anon set consent: ' || CASE WHEN has_function_privilege('anon', 'public.set_text_ai_consent(boolean, boolean)', 'execute') THEN 'ALLOWED!' ELSE 'rejected' END;
 INSERT INTO public._t SELECT 'sf service_role denial fn: ' || CASE WHEN has_function_privilege('service_role', 'public.ai_access_denial(uuid, text)', 'execute') THEN 'ok' ELSE 'FAILED' END;
 SELECT code FROM public._t WHERE code LIKE 'sf %' ORDER BY code;
+
+-- @@ 181. موثوقية الإشعارات (20261225100000): حفظ الرمز متكرّر الأمان، notification_id، إسقاط المتأخر، والإيقاظ لا يُفشل الإدراج
+DELETE FROM public._t;
+DELETE FROM public.push_outbox;
+DELETE FROM public.native_push_tokens WHERE token LIKE 'rel_tok:%';
+SET ROLE authenticated;
+SET "request.jwt.claim.sub" = '11111111-1111-1111-1111-111111111111';
+SELECT public.save_native_push_token('rel_tok:APA91b' || repeat('r', 40), 'android');
+RESET ROLE;
+RESET "request.jwt.claim.sub";
+UPDATE public.native_push_tokens SET last_success_at = '2026-01-01', private_preview = true,
+       created_at = '2026-01-01'
+ WHERE token = 'rel_tok:APA91b' || repeat('r', 40);
+-- إعادة الحفظ عند كل تشغيل: لا تمسح «آخر وصول» ولا الخصوصية ولا تاريخ التسجيل لصاحب الرمز نفسه.
+SET ROLE authenticated;
+SET "request.jwt.claim.sub" = '11111111-1111-1111-1111-111111111111';
+SELECT public.save_native_push_token('rel_tok:APA91b' || repeat('r', 40), 'android');
+RESET ROLE;
+RESET "request.jwt.claim.sub";
+INSERT INTO public._t SELECT 'rel resave keeps state: '
+  || CASE WHEN last_success_at = '2026-01-01' AND private_preview AND created_at = '2026-01-01'
+          THEN 'ok' ELSE 'FAILED' END
+  FROM public.native_push_tokens WHERE token = 'rel_tok:APA91b' || repeat('r', 40);
+-- حساب آخر على الجهاز نفسه: يبدأ نظيفاً (لا يرث خصوصية الحساب السابق ولا «آخر وصول»).
+SET ROLE authenticated;
+SET "request.jwt.claim.sub" = '22222222-2222-2222-2222-222222222222';
+SELECT public.save_native_push_token('rel_tok:APA91b' || repeat('r', 40), 'android');
+RESET ROLE;
+RESET "request.jwt.claim.sub";
+INSERT INTO public._t SELECT 'rel new owner fresh: '
+  || CASE WHEN user_id = '22222222-2222-2222-2222-222222222222' AND last_success_at IS NULL
+           AND NOT private_preview THEN 'ok' ELSE 'FAILED' END
+  FROM public.native_push_tokens WHERE token = 'rel_tok:APA91b' || repeat('r', 40);
+-- اشتراك ويب قديم وحده لا يُدرج صفوفاً لا تصل.
+DELETE FROM public.native_push_tokens WHERE token = 'rel_tok:APA91b' || repeat('r', 40);
+INSERT INTO public.notifications (user_id, kind, title)
+VALUES ('11111111-1111-1111-1111-111111111111', 'assignment', 'ويب فقط');
+INSERT INTO public._t SELECT 'rel web-only not queued: '
+  || CASE WHEN count(*) = 0 THEN 'none' ELSE 'FAILED ' || count(*) END FROM public.push_outbox;
+-- بجهاز حقيقي: يُدرج (والإيقاظ بلا pg_net/Vault هنا لا يُفشل الإدراج)، والسحب يحمل notification_id.
+INSERT INTO public.native_push_tokens (user_id, token, platform)
+VALUES ('11111111-1111-1111-1111-111111111111', 'rel_tok:APA91b' || repeat('r', 40), 'android');
+UPDATE public.notification_prefs SET quiet_start = NULL, quiet_end = NULL, categories = '{}'
+ WHERE user_id = '11111111-1111-1111-1111-111111111111';
+INSERT INTO public.notifications (user_id, kind, title, link)
+VALUES ('11111111-1111-1111-1111-111111111111', 'assignment', 'واجب', '/today');
+INSERT INTO public.push_outbox (user_id, category, title, url, send_after, created_at)
+VALUES ('11111111-1111-1111-1111-111111111111', 'wird', 'ورد الأمس', '/', now() - interval '13 hours',
+        now() - interval '13 hours');
+SET ROLE service_role;
+CREATE TEMP TABLE _rel AS SELECT * FROM public.claim_push_batch(10);
+RESET ROLE;
+INSERT INTO public._t SELECT 'rel claim carries nid: '
+  || CASE WHEN count(*) = 1 AND bool_and(c.notification_id = n.id) THEN 'ok' ELSE 'FAILED ' || count(*) END
+  FROM _rel c JOIN public.notifications n ON n.user_id = c.user_id AND n.title = 'واجب';
+INSERT INTO public._t SELECT 'rel stale dropped: '
+  || CASE WHEN failed_at IS NOT NULL AND sent_at IS NULL THEN 'ok' ELSE 'FAILED' END
+  FROM public.push_outbox WHERE title = 'ورد الأمس';
+-- وصل إلى جهاز ⇒ يُغلق؛ ولا جهاز متبقٍّ ⇒ يُغلق أيضاً بدل خمس محاولات بلا جدوى.
+SET ROLE service_role;
+SELECT public.finish_push(id, ARRAY['rel_tok:APA91b' || repeat('r', 40)], '{}') FROM _rel;
+RESET ROLE;
+INSERT INTO public._t SELECT 'rel delivered closes: '
+  || CASE WHEN bool_and(o.sent_at IS NOT NULL) THEN 'ok' ELSE 'FAILED' END
+  FROM public.push_outbox o JOIN _rel c ON c.id = o.id;
+INSERT INTO public._t SELECT 'rel kick grants: '
+  || CASE WHEN has_function_privilege('authenticated', 'public.push_outbox_kick()', 'execute')
+            OR has_table_privilege('authenticated', 'public.push_dispatch_state', 'select')
+          THEN 'ALLOWED!' ELSE 'rejected' END;
+DROP TABLE _rel;
+DELETE FROM public.native_push_tokens WHERE token LIKE 'rel_tok:%';
+DELETE FROM public.push_outbox;
+SELECT code FROM public._t WHERE code LIKE 'rel %' ORDER BY code;

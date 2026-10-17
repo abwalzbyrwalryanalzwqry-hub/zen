@@ -21,13 +21,22 @@ export type FcmMessage = {
   tag: string;
   /** قفل التطبيق 1.29.0 (M6): خصوصية PRIVATE على شاشة قفل الجهاز (العنوان والنص عامّان أصلاً). */
   private?: boolean;
+  /** معرّف الإشعار في صندوق التطبيق: يُعلَّم مقروءاً حين ينقر المستخدم الإشعار في الجوال. */
+  nid?: string | null;
 };
 
 /** نص الإشعار العام لجهاز فعّل «إخفاء نص الإشعارات» مع قفل زِن. */
 export const PRIVATE_PUSH = { title: "زِن", body: "لديك إشعار جديد" } as const;
 
 /** نتيجة إرسال لرمز واحد؛ gone تعني أن الرمز لم يعد صالحاً فيُحذف. */
-export type FcmResult = { token: string; ok: boolean; gone: boolean; status: number };
+export type FcmResult = {
+  token: string;
+  ok: boolean;
+  gone: boolean;
+  status: number;
+  /** رمز خطأ FCM عند الفشل (UNREGISTERED، QUOTA_EXCEEDED…) للسجلّ، بلا أي رمز جهاز. */
+  error?: string;
+};
 
 const SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 const DEFAULT_TOKEN_URI = "https://oauth2.googleapis.com/token";
@@ -117,6 +126,17 @@ async function accessToken(sa: FcmServiceAccount, fetchImpl: typeof fetch): Prom
   return j.access_token;
 }
 
+/**
+ * فحص مسبق قبل حجز الدفعة: يجلب رمز الوصول (أو يأخذه من الذاكرة). إن كان حساب الخدمة خاطئاً أو
+ * مُبطَلاً يفشل هنا فلا تُستهلك محاولات الصفوف الخمس على عطل إعداد لا علاقة له بها.
+ */
+export async function fcmReady(
+  sa: FcmServiceAccount,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  await accessToken(sa, fetchImpl);
+}
+
 /** للاختبارات: يُسقط رمز الوصول المخزَّن. */
 export function resetFcmTokenCache() {
   cached = null;
@@ -134,9 +154,12 @@ export function fcmPayload(token: string, msg: FcmMessage) {
     message: {
       token,
       notification: { title: msg.title, body: msg.body ?? "" },
-      data: { url: msg.url, tag: msg.tag },
+      // قيم data نصوص فقط في FCM.
+      data: msg.nid ? { url: msg.url, tag: msg.tag, nid: msg.nid } : { url: msg.url, tag: msg.tag },
       android: {
         priority: "high",
+        // جهاز مطفأ أياماً لا يتلقى عند عودته سيل تذكيرات قديمة (الافتراضي أربعة أسابيع).
+        ttl: "86400s",
         notification: {
           channel_id: "zen-default",
           sound: "default",
@@ -151,13 +174,31 @@ export function fcmPayload(token: string, msg: FcmMessage) {
   };
 }
 
-/** رمز منتهٍ أو غير مسجّل: 404، أو 400 بخطأ UNREGISTERED/INVALID_ARGUMENT على الرمز. */
+/**
+ * رمز منتهٍ أو غير مسجّل: 404، أو 400 بخطأ UNREGISTERED، أو INVALID_ARGUMENT على الرمز نفسه
+ * («The registration token is not a valid FCM registration token»). INVALID_ARGUMENT لسبب آخر
+ * (عنوان طويل مثلاً) ليس «زائلاً» فلا يُحذف الجهاز بسببه.
+ */
 export function isGoneResponse(status: number, body: string): boolean {
   if (status === 404) return true;
   if (status === 400 || status === 403) {
-    return /UNREGISTERED|registration-token-not-registered|invalid registration token/i.test(body);
+    return /UNREGISTERED|registration-token-not-registered|invalid registration token|not a valid FCM registration token/i.test(
+      body,
+    );
   }
   return false;
+}
+
+/** رمز الخطأ من جسم رد FCM: details[].errorCode ثم status. */
+export function fcmErrorCode(body: string): string | undefined {
+  try {
+    const e = (
+      JSON.parse(body) as { error?: { status?: string; details?: { errorCode?: string }[] } }
+    ).error;
+    return e?.details?.find((d) => d?.errorCode)?.errorCode ?? e?.status ?? undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function sendFcm(
@@ -177,15 +218,19 @@ export async function sendFcm(
           headers: { authorization: `Bearer ${bearer}`, "content-type": "application/json" },
           body: JSON.stringify(fcmPayload(token, msg)),
         });
-        const text = res.ok ? "" : await res.text();
+        if (res.ok) return { token, ok: true, gone: false, status: res.status };
+        const text = await res.text();
+        // رمز وصول أبطلته Google قبل موعده: يُسقط من الذاكرة فتجلب الدفعة التالية رمزاً جديداً.
+        if (res.status === 401) cached = null;
         return {
           token,
-          ok: res.ok,
-          gone: !res.ok && isGoneResponse(res.status, text),
+          ok: false,
+          gone: isGoneResponse(res.status, text),
           status: res.status,
+          error: fcmErrorCode(text),
         };
       } catch {
-        return { token, ok: false, gone: false, status: 0 };
+        return { token, ok: false, gone: false, status: 0, error: "NETWORK" };
       }
     }),
   );

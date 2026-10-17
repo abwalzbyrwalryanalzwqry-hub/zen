@@ -3146,6 +3146,21 @@ export type Database = {
         };
         Relationships: [];
       };
+      push_dispatch_state: {
+        Row: {
+          id: number;
+          last_kick_at: string;
+        };
+        Insert: {
+          id?: number;
+          last_kick_at?: string;
+        };
+        Update: {
+          id?: number;
+          last_kick_at?: string;
+        };
+        Relationships: [];
+      };
       push_outbox: {
         Row: {
           attempts: number;
@@ -4102,6 +4117,10 @@ export type Database = {
         Returns: undefined;
       };
       activate_teacher_role: { Args: { _code: string | null }; Returns: string };
+      ai_access_denial: {
+        Args: { _user: string | null; _feature: string | null };
+        Returns: string;
+      };
       ai_memo_context: { Args: { _user: string | null }; Returns: Json };
       am_app_owner: { Args: never; Returns: boolean };
       app_error_alert_tick: { Args: { _threshold?: number | null }; Returns: Json };
@@ -4123,6 +4142,7 @@ export type Database = {
       audit_sample: { Args: { _halaqa: string | null }; Returns: Json };
       auth_schema_guard: { Args: never; Returns: { table_name: string; column_name: string }[] };
       award_badges: { Args: { _student: string | null }; Returns: number };
+      backup_tick: { Args: never; Returns: string };
       can_manage_schedule: {
         Args: { _uid: string | null; _halaqa: string | null };
         Returns: boolean;
@@ -4249,6 +4269,7 @@ export type Database = {
           body: string;
           url: string;
           subscriptions: Json;
+          notification_id: string;
         }[];
       };
       claim_username: {
@@ -4272,6 +4293,7 @@ export type Database = {
         };
         Returns: Json;
       };
+      create_backup_snapshot: { Args: never; Returns: Json };
       create_center_staff_code: {
         Args: { _center: string | null; _role?: string | null };
         Returns: Json;

@@ -110,4 +110,59 @@ describe("مرسِل الإشعارات في Edge (المرحلة 6.4)", () => {
     expect(store.finish).toHaveBeenCalledWith("p1", ["t-open", "t-hidden"], []);
     expect(sum.delivered).toBe(2);
   });
+
+  it("عطل في صف أو في ختمه لا يوقف بقية الدفعة، ومعرّف التنبيه يصل إلى الحمولة", async () => {
+    const rows: ClaimedPush[] = [
+      {
+        id: "a",
+        user_id: "u1",
+        category: "general",
+        title: "1",
+        body: null,
+        url: "/",
+        subscriptions: [{ token: "t-a", platform: "android" }],
+        notification_id: "n-a",
+      },
+      {
+        id: "b",
+        user_id: "u2",
+        category: "general",
+        title: "2",
+        body: null,
+        url: "/",
+        subscriptions: [{ token: "t-b", platform: "android" }],
+      },
+      {
+        id: "c",
+        user_id: "u3",
+        category: "general",
+        title: "3",
+        body: null,
+        url: "/",
+        subscriptions: [{ token: "t-c", platform: "android" }],
+      },
+    ];
+    const finished: string[] = [];
+    const store = {
+      enqueueReminders: vi.fn(async () => undefined),
+      claim: vi.fn(async () => rows),
+      finish: async (id: string) => {
+        if (id === "c") throw new Error("db down");
+        finished.push(id);
+      },
+    };
+    const sendNative = vi.fn(async (tokens: string[], _msg: { nid?: string | null }) => {
+      if (tokens[0] === "t-b") throw new Error("network");
+      return tokens.map((token) => ({ token, ok: true, gone: false, status: 200 }));
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const sum = await dispatchPush(store, {} as FcmServiceAccount, { sendNative });
+    warn.mockRestore();
+    err.mockRestore();
+    expect(sum).toEqual({ claimed: 3, delivered: 2, gone: 0, failed: 1 });
+    expect(finished).toEqual(["a"]);
+    expect(sendNative.mock.calls[0][1].nid).toBe("n-a");
+    expect(sendNative.mock.calls[1][1]).not.toHaveProperty("nid");
+  });
 });

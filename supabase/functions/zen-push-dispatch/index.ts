@@ -14,7 +14,7 @@ import {
   type PushStore,
 } from "../_shared/push-core.ts";
 import { BODY_LIMITS, BodyTooLargeError, readJsonLimited } from "../_shared/edge-http.ts";
-import { parseServiceAccount } from "../_shared/fcm.server.ts";
+import { fcmReady, parseServiceAccount } from "../_shared/fcm.server.ts";
 
 declare const Deno: {
   env: { toObject(): Record<string, string> };
@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
     const userClient = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: auth } },
     });
-    const { data } = await userClient.auth.getUser();
+    const { data } = await userClient.auth.getUser(bearer);
     if (data?.user) {
       mode = "kick";
       kicker = data.user.id;
@@ -77,7 +77,12 @@ Deno.serve(async (req) => {
       return (data ?? []) as ClaimedPush[];
     },
     async finish(id, delivered, gone) {
-      await admin.rpc("finish_push", { _id: id, _delivered: delivered, _gone: gone });
+      const { error } = await admin.rpc("finish_push", {
+        _id: id,
+        _delivered: delivered,
+        _gone: gone,
+      });
+      if (error) throw new Error("finish_push: " + error.message);
     },
   };
   let body: { reminders?: unknown };
@@ -87,9 +92,22 @@ Deno.serve(async (req) => {
     if (e instanceof BodyTooLargeError) return json({ error: e.message }, 413);
     throw e;
   }
+  // حساب خدمة خاطئ أو مُبطَل يُكتشف قبل الحجز، فلا تحترق محاولات الصفوف على عطل إعداد.
+  try {
+    await fcmReady(fcm);
+  } catch (e) {
+    console.error("[zen-push-dispatch] fcm auth", e instanceof Error ? e.message : e);
+    return mode === "cron"
+      ? json({ error: "fcm auth failed" }, 503)
+      : json({ sent: false, reason: "fcm_auth" });
+  }
   try {
     const sum = await dispatchPush(store, fcm, dispatchPlan(mode, body));
-    return json(mode === "cron" ? sum : { sent: true, delivered: sum.delivered });
+    if (sum.failed > 0 || sum.gone > 0)
+      console.warn("[zen-push-dispatch]", mode, JSON.stringify(sum));
+    return json(
+      mode === "cron" ? sum : { sent: true, claimed: sum.claimed, delivered: sum.delivered },
+    );
   } catch (e) {
     console.error("[zen-push-dispatch]", e instanceof Error ? e.message : e);
     return json({ error: "تعذّر الإرسال الآن." }, 502);

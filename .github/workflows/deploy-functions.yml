@@ -34,3 +34,10 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase functions deploy zen-recitation --project-ref iniqospdljdlcfmwxafl
+
+      # المجدول ومشغّل push_outbox يرسلان سرّاً لا رمز JWT، والدالة تتحقق بنفسها (السرّ أو جلسة المستخدم)،
+      # فيلزم --no-verify-jwt. كانت تُنشر يدوياً فقط، فلا يصل أي إصلاح في _shared/push-core أو fcm.server.
+      - name: Deploy zen-push-dispatch
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy zen-push-dispatch --no-verify-jwt --project-ref iniqospdljdlcfmwxafl

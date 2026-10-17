@@ -190,6 +190,19 @@ function RootComponent() {
         void queryClient.invalidateQueries({ queryKey: ["more-badges"] });
         window.dispatchEvent(new Event("zen:push"));
       },
+      // نقر إشعاراً في الجوال: قرأه، فيُعلَّم مقروءاً في الصندوق بدل أن يبقى عدّاده.
+      onOpen: (nid) => {
+        const refresh = () => {
+          void queryClient.invalidateQueries({ queryKey: ["unread-notifications"] });
+          void queryClient.invalidateQueries({ queryKey: ["more-badges"] });
+          window.dispatchEvent(new Event("zen:push"));
+        };
+        if (!nid) return refresh();
+        void import("@/lib/zen-lms")
+          .then((m) => m.markNotificationRead(nid))
+          .catch(() => undefined)
+          .finally(refresh);
+      },
     });
     return () => {
       window.clearTimeout(pruneTimer);

@@ -60,9 +60,9 @@ export function safeInternalPath(url: unknown): string | null {
   return /^\/(?!\/)[A-Za-z0-9/_\-$?=&.]*$/.test(url) ? url : null;
 }
 
-async function plugin() {
-  const { PushNotifications } = await import("@capacitor/push-notifications");
-  return PushNotifications;
+/** الوحدة لا الإضافة: إضافة Capacitor تبدو «thenable» فإرجاعها من وعد يعلّقه للأبد (انظر notify/device.ts). */
+function pushModule() {
+  return import("@capacitor/push-notifications");
 }
 
 const REGISTER_ERRORS: Record<RegisterResult, string | null> = {
@@ -91,6 +91,8 @@ export type ShellNav = {
   go: (path: string) => void;
   /** وصل إشعار والتطبيق مفتوح (يعرضه النظام بصوته؛ هنا تحديث العدّادات والقائمة). */
   onPush?: () => void;
+  /** نقر المستخدم إشعاراً في الجوال: `nid` معرّف التنبيه في الصندوق ليُعلَّم مقروءاً (null للتذكيرات). */
+  onOpen?: (nid: string | null) => void;
   back: () => void;
   home: () => void;
   path: () => string;
@@ -109,10 +111,14 @@ export function installNativeShell(nav: ShellNav): () => void {
     else handles.push(h);
   };
 
-  void plugin().then(async (Push) => {
+  void pushModule().then(async ({ PushNotifications: Push }) => {
     keep(
       await Push.addListener("pushNotificationActionPerformed", (a) => {
-        const path = safeInternalPath((a.notification.data as { url?: unknown } | undefined)?.url);
+        const data = a.notification.data as { url?: unknown; nid?: unknown } | undefined;
+        const path = safeInternalPath(data?.url);
+        const nid =
+          typeof data?.nid === "string" && /^[0-9a-f-]{36}$/i.test(data.nid) ? data.nid : null;
+        nav.onOpen?.(nid);
         if (path) nav.go(path);
       }),
     );
