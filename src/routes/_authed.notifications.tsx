@@ -62,10 +62,16 @@ function NotificationsScreen() {
         setRows(page.rows);
         setMore(page.more);
         setInvites(inv);
+        setFailed(false); // نجاح بعد فشل سابق (العودة إلى التطبيق) يُخفي رسالة الخطأ
       })
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }, [userId, tick]);
+
+  // الصفحة مفتوحة = التنبيهات أمام المستخدم: نسخها في شريط الجوال لم تعد لازمة.
+  useEffect(() => {
+    void import("@/lib/notify/device").then((m) => m.clearDeliveredNotifications());
+  }, [tick]);
 
   // إشعار فوري وصل والصفحة مفتوحة: تُعاد قراءة القائمة (1.16.1).
   useEffect(() => {
@@ -121,6 +127,7 @@ function NotificationsScreen() {
     setRead(unread, true);
     try {
       await markAllNotificationsRead(userId);
+      void import("@/lib/notify/device").then((m) => m.clearDeliveredNotifications());
     } catch {
       setRead(unread, false);
       toast.error(t("inbox.markFailed"));

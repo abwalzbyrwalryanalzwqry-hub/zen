@@ -100,9 +100,28 @@ export async function disablePush(): Promise<void> {
  * `send_test_push` تتجاوز ساعات الهدوء، وحدّها إشعار كل 30 ثانية.
  */
 export async function sendTestPush(title: string, body: string): Promise<string | null> {
-  const { error } = await rpc("send_test_push", { _title: title, _body: body });
-  if (error) return /NO_DEVICE|RATE_LIMITED|AUTH_REQUIRED/.exec(error.message)?.[0] ?? "FAILED";
-  await kickPushSoon();
+  const send = async () => {
+    const { error } = await rpc("send_test_push", { _title: title, _body: body });
+    return error
+      ? (/NO_DEVICE|RATE_LIMITED|AUTH_REQUIRED/.exec(error.message)?.[0] ?? "FAILED")
+      : null;
+  };
+  let err = await send();
+  // الجهاز يرى نفسه مفعّلاً والخادم لا يجد رمزه (حذفه بعد رد FCM مثلاً): يُعاد التسجيل ثم تُعاد التجربة.
+  if (err === "NO_DEVICE" && isNativeApp()) {
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user.id;
+    if (user) {
+      const { resyncDevice } = await import("./notify/device");
+      if ((await resyncDevice(user)) === "on") err = await send();
+    }
+  }
+  if (err) return err;
+  const r = await kickPushSoon();
+  // الخادم بلا مفاتيح FCM أو بمفاتيح مرفوضة: لن يصل أي إشعار، فلا يُقال «أُرسل».
+  if (r && r.sent === false && !r.throttled) return "SERVER_NOT_READY";
+  // حُجز الصف وأرسل فرفضه FCM لكل أجهزتك (رمز قديم أو مشروع Firebase مختلف).
+  if (r?.sent && (r.claimed ?? 0) > 0 && r.delivered === 0) return "NOT_DELIVERED";
   return null;
 }
 
@@ -152,11 +171,20 @@ export function pushError(message: string): string {
  * يطلب من دالة Edge «zen-push-dispatch» إرسال المستحق الآن. لا يفشل أبداً: الإشعار
  * محفوظ في التطبيق على أي حال، والمجدول يرسله خلال دقيقة.
  */
-export async function kickPushSoon(): Promise<void> {
+export type KickResult = {
+  sent: boolean;
+  claimed?: number;
+  delivered?: number;
+  throttled?: boolean;
+  reason?: string;
+};
+
+export async function kickPushSoon(): Promise<KickResult | null> {
   try {
     const { callEdge } = await import("./server-call");
-    await callEdge("zen-push-dispatch", {});
+    return await callEdge<KickResult>("zen-push-dispatch", {});
   } catch {
-    // لا شيء: المجدول يرسله لاحقاً.
+    // لا شيء: المجدول (أو مشغّل push_outbox) يرسله لاحقاً.
+    return null;
   }
 }

@@ -16,6 +16,8 @@ export type ClaimedPush = {
   body: string | null;
   url: string;
   subscriptions: unknown;
+  /** معرّف الإشعار الأصل في notifications (null للتذكيرات والتجربة). */
+  notification_id?: string | null;
 };
 
 /** وسم الإشعار في النظام: تذكير الخادم يحلّ محلّ التذكير المحلي بدل أن يتكرّر. */
@@ -62,24 +64,52 @@ export async function dispatchPush(
   const sum: DispatchSummary = { claimed: batch.length, delivered: 0, gone: 0, failed: 0 };
   for (const row of batch) {
     const tag = PUSH_TAG[row.category] ?? row.category;
+    const nid = row.notification_id ? { nid: row.notification_id } : {};
     const native = nativeOf(row.subscriptions);
     // قفل التطبيق 1.29.0 (M6): جهاز اختار «إخفاء نص الإشعارات» يتلقى نصاً عاماً بخصوصية PRIVATE.
     const open = native.filter((t) => t.private !== true).map((t) => t.token);
     const hidden = native.filter((t) => t.private === true).map((t) => t.token);
-    const results = [
-      ...(open.length > 0
-        ? await sendNative(open, { title: row.title, body: row.body, url: row.url, tag }, fcm)
-        : []),
-      ...(hidden.length > 0
-        ? await sendNative(hidden, { ...PRIVATE_PUSH, url: row.url, tag, private: true }, fcm)
-        : []),
-    ];
+    let results: Awaited<ReturnType<typeof sendFcm>>;
+    try {
+      results = [
+        ...(open.length > 0
+          ? await sendNative(
+              open,
+              { title: row.title, body: row.body, url: row.url, tag, ...nid },
+              fcm,
+            )
+          : []),
+        ...(hidden.length > 0
+          ? await sendNative(
+              hidden,
+              { ...PRIVATE_PUSH, url: row.url, tag, private: true, ...nid },
+              fcm,
+            )
+          : []),
+      ];
+    } catch (e) {
+      // عطل عابر في صف واحد (شبكة، رمز وصول) لا يوقف بقية الدفعة؛ الصف يُعاد بعد دقيقتين.
+      sum.failed += open.length + hidden.length;
+      console.warn("[push] row", row.id, e instanceof Error ? e.message : e);
+      continue;
+    }
     const delivered = results.filter((r) => r.ok).map((r) => r.token);
     const gone = results.filter((r) => r.gone).map((r) => r.token);
+    const failed = results.filter((r) => !r.ok && !r.gone);
     sum.delivered += delivered.length;
     sum.gone += gone.length;
-    sum.failed += results.length - delivered.length - gone.length;
-    await store.finish(row.id, delivered, gone);
+    sum.failed += failed.length;
+    if (failed.length > 0)
+      console.warn(
+        "[push] fcm",
+        row.category,
+        failed.map((r) => `${r.status}:${r.error ?? "?"}`).join(","),
+      );
+    try {
+      await store.finish(row.id, delivered, gone);
+    } catch (e) {
+      console.error("[push] finish", row.id, e instanceof Error ? e.message : e);
+    }
   }
   return sum;
 }

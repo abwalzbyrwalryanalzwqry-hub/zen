@@ -26,6 +26,18 @@ function read(k: string): string | null {
   }
 }
 
+/**
+ * يُنسى آخر تزامن: بعد إعادة حفظ الرمز قد يكون صفّه على الخادم جديداً (حذفه الخادم ثم أُعيد) فيبدأ عاماً،
+ * فلا تُصدَّق العلامة المحلية القديمة.
+ */
+export function forgetLockPushSync(): void {
+  try {
+    localStorage.removeItem(SYNCED_KEY);
+  } catch {
+    // لا شيء
+  }
+}
+
 export function syncLockPushPrivacy(): Promise<"synced" | "skipped" | "failed"> {
   return (inflight ??= run().finally(() => (inflight = null)));
 }
@@ -39,8 +51,10 @@ async function run(): Promise<"synced" | "skipped" | "failed"> {
   const mark = `${token.slice(-24)}:${want ? 1 : 0}`;
   if (read(SYNCED_KEY) === mark) return "skipped";
   try {
-    const { error } = await rpc("set_native_push_private", { _token: token, _private: want });
+    const { data, error } = await rpc("set_native_push_private", { _token: token, _private: want });
     if (error) return "failed";
+    // false = لا صف لهذا الرمز على الخادم بعد (حُذف أو لم يُحفظ): لا يُعلَّم متزامناً، فيُعاد بعد حفظ الرمز.
+    if (data === false) return "failed";
     localStorage.setItem(SYNCED_KEY, mark);
     return "synced";
   } catch {

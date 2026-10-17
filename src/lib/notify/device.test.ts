@@ -29,6 +29,10 @@ const Push = {
     queueMicrotask(() => listeners.registration?.({ value: "tok-1" }));
   }),
   unregister: vi.fn(async () => undefined),
+  removeAllDeliveredNotifications: vi.fn(async () => undefined),
+  // كإضافة Capacitor الحقيقية (Proxy): لها «then» لا تستدعي resolve أبداً، فأي `await` للإضافة نفسها
+  // يعلّق الاختبار كما كان يعلّق التطبيق على الجوال.
+  then: () => undefined,
 };
 
 vi.mock("@capacitor/core", () => ({
@@ -37,6 +41,8 @@ vi.mock("@capacitor/core", () => ({
 vi.mock("@capacitor/push-notifications", () => ({ PushNotifications: Push }));
 vi.mock("@/integrations/supabase/lazy", () => ({ lazyRpc: (...a: unknown[]) => rpc(...a) }));
 vi.mock("@/lib/network", () => ({ isOnline: () => true }));
+const lockPush = { forgetLockPushSync: vi.fn(), syncLockPushPrivacy: vi.fn(async () => "skipped") };
+vi.mock("@/lib/app-lock-push", () => lockPush);
 
 const device = await import("./device");
 
@@ -99,9 +105,38 @@ describe("notify/device", () => {
     });
   });
 
+  it("طلبا تسجيل متزامنان لا يضيع ردّ أحدهما", async () => {
+    perm = "granted";
+    const [a, b] = await Promise.all([device.autoRegister("u1"), device.turnOnDevice("u1")]);
+    expect(a).toBe("on");
+    expect(b).toBe("on");
+  });
+
   it("قناة مطفأة في الجوال تظهر في الحالة", async () => {
     perm = "granted";
     Push.listChannels.mockResolvedValueOnce({ channels: [{ id: "zen-default", importance: 0 }] });
     expect(await device.deviceState()).toBe("blocked");
+  });
+
+  it("تشغيل جديد يعيد حفظ الرمز نفسه مرة (الخادم ربما حذفه بعد رد FCM)", async () => {
+    perm = "granted";
+    await device.autoRegister("u1");
+    vi.resetModules();
+    const fresh = await import("./device");
+    rpc.mockClear();
+    expect(await fresh.autoRegister("u1")).toBe("on");
+    expect(rpc).toHaveBeenCalledWith("save_native_push_token", {
+      _token: "tok-1",
+      _platform: "android",
+    });
+    // وفي التشغيل نفسه لا يتكرّر الحفظ، إلا بإعادة تسجيل صريحة (NO_DEVICE من الخادم).
+    rpc.mockClear();
+    await fresh.autoRegister("u1");
+    expect(rpc).not.toHaveBeenCalledWith("save_native_push_token", expect.anything());
+    expect(await fresh.resyncDevice("u1")).toBe("on");
+    expect(rpc).toHaveBeenCalledWith("save_native_push_token", {
+      _token: "tok-1",
+      _platform: "android",
+    });
   });
 });

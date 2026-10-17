@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  fcmErrorCode,
   fcmPayload,
   isGoneResponse,
   parseServiceAccount,
@@ -88,6 +89,17 @@ describe("fcm.server", () => {
     expect(
       isGoneResponse(400, '{"error":{"status":"INVALID_ARGUMENT","message":"bad title"}}'),
     ).toBe(false);
+    expect(
+      isGoneResponse(
+        400,
+        '{"error":{"status":"INVALID_ARGUMENT","message":"The registration token is not a valid FCM registration token"}}',
+      ),
+    ).toBe(true);
+    expect(
+      fcmErrorCode('{"error":{"status":"NOT_FOUND","details":[{"errorCode":"UNREGISTERED"}]}}'),
+    ).toBe("UNREGISTERED");
+    expect(fcmErrorCode('{"error":{"status":"QUOTA_EXCEEDED"}}')).toBe("QUOTA_EXCEEDED");
+    expect(fcmErrorCode("unavailable")).toBeUndefined();
     expect(isGoneResponse(500, "UNREGISTERED")).toBe(false);
     expect(isGoneResponse(429, "")).toBe(false);
   });
@@ -110,6 +122,10 @@ describe("fcm.server", () => {
     // قفل التطبيق 1.29.0 (M6): الرسالة الخاصة مخفية على شاشة قفل الجهاز.
     const q = fcmPayload("tok", { title: "زِن", body: "x", url: "/", tag: "t", private: true });
     expect(q.message.android.notification.visibility).toBe("PRIVATE");
+    // لا يعيش الإشعار في FCM أكثر من يوم، ومعرّف التنبيه (إن وُجد) يُحمل ليُعلَّم مقروءاً عند النقر.
+    expect(p.message.android.ttl).toBe("86400s");
+    const r = fcmPayload("tok", { title: "x", body: "y", url: "/today", tag: "t", nid: "n-1" });
+    expect(r.message.data).toEqual({ url: "/today", tag: "t", nid: "n-1" });
   });
 
   it("يطلب رمز الوصول مرة واحدة ثم يرسل لكل جهاز ويعلّم المنتهي", async () => {
